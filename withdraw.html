@@ -1,220 +1,181 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Withdraw – Zyppayx</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Withdraw – Zyppayx</title>
 
-  <style>
-    body{
-      font-family:Arial;
-      background:#000;
-      margin:0;
-      padding:0;
-      color:#eee;
-    }
-    .box{
-      background:#111;
-      margin:30px 15px;
-      padding:20px;
-      border-radius:12px;
-      box-shadow:0 2px 10px rgba(255,255,255,0.1);
-    }
-    h2{text-align:center;color:#6a0dad}
-    input, select{
-      width:100%;
-      padding:12px;
-      margin-top:10px;
-      border-radius:8px;
-      border:1px solid #555;
-      background:#222;
-      color:#eee;
-    }
-    button{
-      width:100%;
-      margin-top:15px;
-      background:#6a0dad;
-      color:#fff;
-      border:none;
-      padding:12px;
-      border-radius:8px;
-      cursor:pointer;
-    }
-    button:hover{opacity:0.9}
-    .fee{margin-top:10px;color:#ccc}
-    .back{
-      text-align:center;
-      margin-top:15px;
-    }
-    .back a{color:#6a0dad;text-decoration:none}
-  </style>
+<style>
+body{font-family:Arial;background:#000;margin:0;padding:0;color:#eee;}
+.box{background:#111;margin:30px 15px;padding:20px;border-radius:12px;box-shadow:0 2px 10px rgba(255,255,255,0.1);}
+h2{text-align:center;color:#bb86fc}
+input, select{width:100%;padding:12px;margin-top:10px;border-radius:8px;border:1px solid #555;background:#222;color:#eee;}
+button{width:100%;margin-top:15px;background:#bb86fc;color:#000;border:none;padding:12px;border-radius:8px;cursor:pointer;}
+button:hover{opacity:0.9}
+.fee{margin-top:10px;color:#ccc}
+.back{text-align:center;margin-top:15px;}
+.back a{color:#bb86fc;text-decoration:none}
+</style>
 </head>
-
 <body>
 
-  <div class="box">
-    <h2>Withdraw Funds</h2>
+<div class="box">
+<h2>Withdraw Funds</h2>
 
-    <input type="number" id="amount" placeholder="Amount (₦500 - ₦10,000 per withdrawal)">
+<input type="number" id="amount" placeholder="Amount (₦500 - ₦10,000)">
+<div class="fee" id="feeText"></div>
 
-    <div class="fee" id="feeText"></div>
+<select id="bank">
+  <option value="">Select Bank</option>
+  <!-- COMMERCIAL BANKS -->
+  <option>Access Bank</option>
+  <option>Citibank</option>
+  <option>Ecobank</option>
+  <option>Fidelity Bank</option>
+  <option>First Bank of Nigeria</option>
+  <option>FCMB</option>
+  <option>Globus Bank</option>
+  <option>Guaranty Trust Bank (GTBank)</option>
+  <option>Heritage Bank</option>
+  <option>Jaiz Bank</option>
+  <option>Keystone Bank</option>
+  <option>Stanbic IBTC</option>
+  <option>Standard Chartered</option>
+  <option>Sterling Bank</option>
+  <option>SunTrust Bank</option>
+  <option>Titan Trust Bank</option>
+  <option>Union Bank</option>
+  <option>UBA</option>
+  <option>Unity Bank</option>
+  <option>Wema Bank</option>
+  <option>Zenith Bank</option>
+  <!-- MFBs and Digital Banks -->
+  <option>Kuda Bank</option>
+  <option>Moniepoint MFB</option>
+  <option>Opay</option>
+  <option>PalmPay</option>
+  <option>Rubies MFB</option>
+  <option>Lotus Bank</option>
+</select>
 
-    <select id="bank">
-      <option value="">Select Bank</option>
-      <!-- Commercial Banks -->
-      <option>Access Bank</option>
-      <option>Citibank</option>
-      <option>Ecobank</option>
-      <option>Fidelity Bank</option>
-      <option>First Bank of Nigeria</option>
-      <option>First City Monument Bank (FCMB)</option>
-      <option>Globus Bank</option>
-      <option>Guaranty Trust Bank (GTBank)</option>
-      <option>Heritage Bank</option>
-      <option>Jaiz Bank</option>
-      <option>Keystone Bank</option>
-      <option>Kuda Bank</option>
-      <option>Lotus Bank</option>
-      <option>Polaris Bank</option>
-      <option>Providus Bank</option>
-      <option>Stanbic IBTC Bank</option>
-      <option>Standard Chartered Bank</option>
-      <option>Sterling Bank</option>
-      <option>SunTrust Bank</option>
-      <option>TAJ Bank</option>
-      <option>Titan Trust Bank</option>
-      <option>Union Bank</option>
-      <option>United Bank for Africa (UBA)</option>
-      <option>Unity Bank</option>
-      <option>Wema Bank</option>
-      <option>Zenith Bank</option>
+<input type="text" id="accountName" placeholder="Account Name">
+<input type="number" id="accountNumber" placeholder="Account Number">
 
-      <!-- Licensed Microfinance Banks / Digital Banks -->
-      <option>Paycom</option>
-      <option>Opay</option>
-      <option>PalmPay</option>
-      <option>Mint</option>
-      <option>ALAT by Wema</option>
-      <option>Rubies MFB</option>
-      <option>FINT</option>
-      <option>ShoreBank</option>
-      <option>Fortis MFB</option>
-      <option>AB Microfinance Bank</option>
-      <option>ACCION Microfinance Bank</option>
-      <option>United MFB</option>
-      <option>SunTrust MFB</option>
-      <option>Peoples Trust MFB</option>
-      <option>Nova Microfinance Bank</option>
-      <option>Lagoon MFB</option>
-      <option>Keystone MFB</option>
-      <option>Infinity MFB</option>
-      <option>Heritage Microfinance Bank</option>
-      <option>FBN Microfinance Bank</option>
-      <option>Monie point MFB</option>
-      <option>Kuda MFB</option>
-      </option>Smartcash MFB</option>
-      </option>Paga MFB</option>
-    </select>
+<button id="submitWithdraw">Submit Withdrawal</button>
 
-    <input type="text" id="accountName" placeholder="Account Name">
-    <input type="number" id="accountNumber" placeholder="Account Number">
+<div class="back">
+<a href="dashboard.html">← Back to Dashboard</a>
+</div>
+</div>
 
-    <button id="submitWithdraw">Submit Withdrawal</button>
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
-    <div class="back">
-      <a href="dashboard.html">← Back to Dashboard</a>
-    </div>
-  </div>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDaQrSeEcCIVOtQJwiEeS_86w11Hn-ITh8",
+  authDomain: "zyppayx-57fbf.firebaseapp.com",
+  projectId: "zyppayx-57fbf",
+  storageBucket: "zyppayx-57fbf.appspot.com",
+  messagingSenderId: "79547716710",
+  appId: "1:79547716710:web:17287b4e064488020349a7"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+// SHOW FEE
+const amountInput = document.getElementById("amount");
+const feeText = document.getElementById("feeText");
+amountInput.oninput = () => {
+  const amt = Number(amountInput.value);
+  feeText.innerText = amt ? `Withdrawal Fee (5%): ₦${(amt*0.05).toFixed(2)}` : "";
+};
 
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyDaQrSeEcCIVOtQJwiEeS_86w11Hn-ITh8",
-      authDomain: "zyppayx-57fbf.firebaseapp.com",
-      projectId: "zyppayx-57fbf",
-      storageBucket: "zyppayx-57fbf.appspot.com",
-      messagingSenderId: "79547716710",
-      appId: "1:79547716710:web:17287b4e064488020349a7"
-    };
+// SUBMIT WITHDRAWAL
+document.getElementById("submitWithdraw").onclick = async () => {
+  const user = auth.currentUser;
+  if(!user) return location.href="index.html";
 
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+  const amount = Number(amountInput.value);
+  const fee = amount*0.05;
+  const bank = document.getElementById("bank").value.trim();
+  const accountName = document.getElementById("accountName").value.trim();
+  const accountNumber = document.getElementById("accountNumber").value.trim();
 
-    const amountInput = document.getElementById("amount");
-    const feeText = document.getElementById("feeText");
+  if(amount < 500) return alert("Minimum withdrawal is ₦500");
+  if(amount > 10000) return alert("Maximum per withdrawal is ₦10,000");
+  if(!bank || !accountName || !accountNumber) return alert("Please fill all fields");
 
-    const MAX_WITHDRAWAL = 5000;
-    const MIN_WITHDRAWAL = 500;
-    const DAILY_LIMIT = 50000;
+  const userRef = db.collection("users").doc(user.uid);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
 
-    amountInput.oninput = () => {
-      const amt = Number(amountInput.value);
-      feeText.innerText = amt ? `Withdrawal Fee (5%): ₦${(amt * 0.05).toFixed(2)}` : "";
-    };
+  try {
+    await db.runTransaction(async tx => {
+      const userDoc = await tx.get(userRef);
+      if(!userDoc.exists) throw "User data not found";
 
-    document.getElementById("submitWithdraw").onclick = async () => {
-      const amount = Number(amountInput.value);
-      const bank = document.getElementById("bank").value;
-      const accountName = document.getElementById("accountName").value.trim();
-      const accountNumber = document.getElementById("accountNumber").value.trim();
+      const balance = userDoc.data().balance || 0;
+      if(balance < amount + fee) throw "Insufficient balance";
 
-      const user = auth.currentUser;
-      if(!user) return location.href = "index.html";
-
-      if(amount < MIN_WITHDRAWAL || amount > MAX_WITHDRAWAL) {
-        return alert(`Each withdrawal must be between ₦${MIN_WITHDRAWAL} and ₦${MAX_WITHDRAWAL}`);
-      }
-      if(!bank || !accountName || !accountNumber) return alert("Please fill all fields");
-
-      // Check user balance
-      const userDoc = await db.collection("users").doc(user.uid).get();
-      const balance = userDoc.data()?.balance || 0;
-      if(balance < amount) return alert("Insufficient balance");
-
-      // Check daily limit
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1);
-
-      const dailyWithdrawals = await db.collection("withdrawals")
-        .where("userId", "==", user.uid)
-        .where("createdAt", ">=", today)
-        .where("createdAt", "<", tomorrow)
+      const withdrawalQuery = await db.collection("withdrawals")
+        .where("userId","==",user.uid)
+        .where("createdAt",">=",today)
+        .where("createdAt","<",tomorrow)
         .get();
 
-      const totalToday = dailyWithdrawals.docs.reduce((sum, doc) => sum + doc.data().amount, 0);
-      if(totalToday + amount > DAILY_LIMIT) return alert(`Daily limit is ₦${DAILY_LIMIT}`);
+      let totalToday = 0;
+      withdrawalQuery.forEach(doc => totalToday += doc.data().amount);
+      if(totalToday + amount > 50000) throw "Daily withdrawal limit reached (₦50,000)";
 
-      const fee = amount * 0.05;
-
-      // Deduct immediately
-      await db.collection("users").doc(user.uid).update({
-        balance: balance - amount
-      });
-
-      // Add withdrawal request
-      await db.collection("withdrawals").add({
-        userId: user.uid,
-        email: user.email,
+      // Deduct balance and submit withdrawal
+      tx.update(userRef,{balance: balance - amount - fee});
+      tx.set(db.collection("withdrawals").doc(),{
+        userId:user.uid,
+        email:user.email,
         amount,
         fee,
         bank,
         accountName,
         accountNumber,
-        status: "pending",
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        status:"pending",
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
       });
+    });
 
-      alert("Withdrawal request sent successfully, you will be credited within 24 hours");
-      location.href = "dashboard.html";
-    };
-  </script>
+    alert("Withdrawal request sent successfully. You will be credited within 24 hours");
+    location.href="dashboard.html";
 
+  } catch(err) {
+    alert(err);
+  }
+};
+
+// AUTO-REFUND ON REJECTION
+auth.onAuthStateChanged(user => {
+  if(!user) return;
+  const userRef = db.collection("users").doc(user.uid);
+
+  db.collection("withdrawals")
+    .where("userId","==",user.uid)
+    .onSnapshot(snapshot => {
+      snapshot.docChanges().forEach(async change => {
+        if(change.type === "modified"){
+          const data = change.doc.data();
+          if(data.status === "rejected" && !data.refunded){
+            await userRef.update({
+              balance: firebase.firestore.FieldValue.increment(data.amount + data.fee)
+            });
+            await db.collection("withdrawals").doc(change.doc.id).update({refunded:true});
+            alert(`Rejected withdrawal of ₦${data.amount} has been refunded`);
+          }
+        }
+      });
+    });
+});
+</script>
 </body>
-        </html>
+</html>
