@@ -55,12 +55,13 @@
   <div class="box">
     <h2>Withdraw Funds</h2>
 
-    <input type="number" id="amount" placeholder="Amount (Minimum ₦500)">
+    <input type="number" id="amount" placeholder="Amount (₦500 - ₦10,000 per withdrawal)">
 
     <div class="fee" id="feeText"></div>
 
     <select id="bank">
       <option value="">Select Bank</option>
+      <!-- Commercial Banks -->
       <option>Access Bank</option>
       <option>Citibank</option>
       <option>Ecobank</option>
@@ -74,12 +75,8 @@
       <option>Keystone Bank</option>
       <option>Kuda Bank</option>
       <option>Lotus Bank</option>
-      <option>Moniepoint MFB</option>
-      <option>Opay</option>
-      <option>PalmPay</option>
       <option>Polaris Bank</option>
       <option>Providus Bank</option>
-      <option>Rubies MFB</option>
       <option>Stanbic IBTC Bank</option>
       <option>Standard Chartered Bank</option>
       <option>Sterling Bank</option>
@@ -91,6 +88,32 @@
       <option>Unity Bank</option>
       <option>Wema Bank</option>
       <option>Zenith Bank</option>
+
+      <!-- Licensed Microfinance Banks / Digital Banks -->
+      <option>Paycom</option>
+      <option>Opay</option>
+      <option>PalmPay</option>
+      <option>Mint</option>
+      <option>ALAT by Wema</option>
+      <option>Rubies MFB</option>
+      <option>FINT</option>
+      <option>ShoreBank</option>
+      <option>Fortis MFB</option>
+      <option>AB Microfinance Bank</option>
+      <option>ACCION Microfinance Bank</option>
+      <option>United MFB</option>
+      <option>SunTrust MFB</option>
+      <option>Peoples Trust MFB</option>
+      <option>Nova Microfinance Bank</option>
+      <option>Lagoon MFB</option>
+      <option>Keystone MFB</option>
+      <option>Infinity MFB</option>
+      <option>Heritage Microfinance Bank</option>
+      <option>FBN Microfinance Bank</option>
+      <option>Monie point MFB</option>
+      <option>Kuda MFB</option>
+      </option>Smartcash MFB</option>
+      </option>Paga MFB</option>
     </select>
 
     <input type="text" id="accountName" placeholder="Account Name">
@@ -125,6 +148,10 @@
     const amountInput = document.getElementById("amount");
     const feeText = document.getElementById("feeText");
 
+    const MAX_WITHDRAWAL = 5000;
+    const MIN_WITHDRAWAL = 500;
+    const DAILY_LIMIT = 50000;
+
     amountInput.oninput = () => {
       const amt = Number(amountInput.value);
       feeText.innerText = amt ? `Withdrawal Fee (5%): ₦${(amt * 0.05).toFixed(2)}` : "";
@@ -136,14 +163,42 @@
       const accountName = document.getElementById("accountName").value.trim();
       const accountNumber = document.getElementById("accountNumber").value.trim();
 
-      if(amount < 500) return alert("Minimum withdrawal is ₦500");
-      if(!bank || !accountName || !accountNumber) return alert("Please fill all fields");
-
-      const fee = amount * 0.05;
-
       const user = auth.currentUser;
       if(!user) return location.href = "index.html";
 
+      if(amount < MIN_WITHDRAWAL || amount > MAX_WITHDRAWAL) {
+        return alert(`Each withdrawal must be between ₦${MIN_WITHDRAWAL} and ₦${MAX_WITHDRAWAL}`);
+      }
+      if(!bank || !accountName || !accountNumber) return alert("Please fill all fields");
+
+      // Check user balance
+      const userDoc = await db.collection("users").doc(user.uid).get();
+      const balance = userDoc.data()?.balance || 0;
+      if(balance < amount) return alert("Insufficient balance");
+
+      // Check daily limit
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+
+      const dailyWithdrawals = await db.collection("withdrawals")
+        .where("userId", "==", user.uid)
+        .where("createdAt", ">=", today)
+        .where("createdAt", "<", tomorrow)
+        .get();
+
+      const totalToday = dailyWithdrawals.docs.reduce((sum, doc) => sum + doc.data().amount, 0);
+      if(totalToday + amount > DAILY_LIMIT) return alert(`Daily limit is ₦${DAILY_LIMIT}`);
+
+      const fee = amount * 0.05;
+
+      // Deduct immediately
+      await db.collection("users").doc(user.uid).update({
+        balance: balance - amount
+      });
+
+      // Add withdrawal request
       await db.collection("withdrawals").add({
         userId: user.uid,
         email: user.email,
@@ -156,10 +211,10 @@
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      alert("Withdrawal request submitted successfully");
+      alert("Withdrawal request sent successfully, you will be credited within 24 hours");
       location.href = "dashboard.html";
     };
   </script>
 
 </body>
-</html>
+        </html>
