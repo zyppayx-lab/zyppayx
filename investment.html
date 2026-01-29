@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Invest | Zyppayx</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{background:#000;color:#eee;font-family:Arial;margin:0}
+.box{background:#111;margin:15px;padding:20px;border-radius:12px}
+h2{color:#bb86fc}
+select,input,button{width:100%;padding:12px;margin-top:10px;border-radius:8px;border:none}
+button{background:#bb86fc;color:#000;font-weight:bold}
+button:hover{opacity:.9}
+.plan-img{width:100%;border-radius:12px;margin-top:10px}
+.small{font-size:13px;color:#bbb;margin-top:5px}
+.bottom-nav{position:fixed;bottom:0;width:100%;background:#111;display:flex;justify-content:space-around;padding:10px 0;border-top:1px solid #333;}
+.bottom-nav button{flex:1;margin:0 5px;}
+canvas{background:#111;border-radius:12px;margin-top:15px;}
+</style>
+</head>
+<body>
+
+<div class="box">
+  <h2>Start Investment</h2>
+  <select id="planSelect"><option value="">Select Investment Plan</option></select>
+  <img id="planImg" class="plan-img" style="display:none">
+  <div class="small" id="planInfo"></div>
+  <input type="number" id="amount" placeholder="Enter amount (₦)">
+  <button id="investBtn">Invest Now</button>
+</div>
+
+<div class="box">
+  <h2>Investment History</h2>
+  <canvas id="historyChart" width="400" height="200"></canvas>
+</div>
+
+<div class="bottom-nav">
+  <button onclick="location.href='dashboard.html'">🏠 Dashboard</button>
+  <button>💰 Invest</button>
+  <button onclick="location.href='profile.html'">👤 Profile</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyDaQrSeEcCIVOtQJwiEeS_86w11Hn-ITh8",
+  authDomain: "zyppayx-57fbf.firebaseapp.com",
+  projectId: "zyppayx-57fbf"
+});
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+const planSelect = document.getElementById("planSelect");
+const planImg = document.getElementById("planImg");
+const planInfo = document.getElementById("planInfo");
+const amountInput = document.getElementById("amount");
+const historyChartCanvas = document.getElementById("historyChart");
+
+let plans = {};
+let historyChart;
+
+// Load plans
+db.collection("investmentPlans").onSnapshot(snap=>{
+  planSelect.innerHTML = `<option value="">Select Investment Plan</option>`;
+  snap.forEach(doc=>{
+    plans[doc.id] = doc.data();
+    planSelect.innerHTML += `<option value="${doc.id}">${doc.data().title}</option>`;
+  });
+});
+
+planSelect.onchange = ()=>{
+  const plan = plans[planSelect.value];
+  if(!plan) return;
+
+  planImg.src = plan.image;
+  planImg.style.display = "block";
+
+  planInfo.innerHTML = `
+    Min: ₦${plan.minAmount}<br>
+    Max: ₦${plan.maxAmount}<br>
+    Duration: ${plan.durationDays} days<br>
+    Cycles: ${plan.cycles || 1} | Profit: ${plan.profitPercentage || 100}% | Loss: ${plan.lossPercentage || 65}%
+  `;
+};
+
+// Invest button
+document.getElementById("investBtn").onclick = async ()=>{
+  const user = auth.currentUser;
+  if(!user) return alert("Please login");
+
+  const planId = planSelect.value;
+  const plan = plans[planId];
+  const amount = Number(amountInput.value);
+
+  if(!plan) return alert("Select a plan");
+  if(amount < plan.minAmount || amount > plan.maxAmount)
+    return alert("Invalid amount");
+
+  const userRef = db.collection("users").doc(user.uid);
+
+  try{
+    await db.runTransaction(async tx=>{
+      const userDoc = await tx.get(userRef);
+      const balance = userDoc.data().balance || 0;
+
+      if(balance < amount) throw "Insufficient balance";
+
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + (plan.durationDays * (plan.cycles || 1)));
+
+      tx.update(userRef, { balance: balance - amount });
+
+      tx.set(db.collection("userInvestments").doc(),{
+        userId: user.uid,
+        planId,
+        amount,
+        status: "active",
+        result: null,
+        credited: false,
+        startDate: firebase.firestore.Timestamp.fromDate(startDate),
+        endDate: firebase.firestore.Timestamp.fromDate(endDate),
+        cyclesCompleted: 0,
+        totalCycles: plan.cycles || 1,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+
+    alert("Investment started successfully!");
+    location.href="dashboard.html";
+
+  }catch(err){
+    alert(err);
+  }
+};
+
+// ---------------- AUTO-COMPOUND & HISTORY ----------------
+auth.onAuthStateChanged(user=>{
+  if(!user) return;
+
+  function loadHistoryChart(historyData){
+    if(historyChart) historyChart.destroy();
+    historyChart = new Chart(historyChartCanvas,{
+      type: 'bar',
+      data: {
+        labels: historyData.map(d=>d.plan),
+        datasets: [{
+          label: 'Profit/Loss (₦)',
+          data: historyData.map(d=>d.amount),
+          backgroundColor: historyData.map(d=>d.profit? '#4caf50':'#f44336')
+        }]
+      },
+      options:{ responsive:true, scales:{y:{beginAtZero:true}}}
+    });
+  }
+
+  async function processInvestments(){
+    const now = new Date();
+    const historyData = [];
+
+    const snap = await db.collection("userInvestments").where("userId","==",user.uid).get();
+    for(const doc of snap.docs){
+      let inv = doc.data();
+      if(inv.status === "active" && inv.endDate.toDate() <= now){
+        const planDoc = await db.collection("investmentPlans").doc(inv.planId).get();
+        const plan = planDoc.data();
+        const profitPct = plan.profitPercentage || 100;
+        const lossPct = plan.lossPercentage || 65;
+
+        // Simulate profit/loss per cycle
+        const cycles = inv.totalCycles || 1;
+        let totalAmount = inv.amount;
+        let profitCycle = true;
+        for(let i=0;i<cycles;i++){
+          const isProfit = Math.random() < 0.7; // 70% chance
+          totalAmount = isProfit ? totalAmount*(1+profitPct/100) : totalAmount*(lossPct/100);
+          profitCycle = isProfit;
+        }
+
+        // Update investment
+        await doc.ref.update({
+          status: "ended",
+          result: profitCycle?'profit':'loss',
+          credited: true,
+          finalAmount: totalAmount
+        });
+
+        // Credit user balance
+        const userRef = db.collection("users").doc(user.uid);
+        const userDoc = await userRef.get();
+        const currBalance = userDoc.data()?.balance || 0;
+        await userRef.update({ balance: currBalance + totalAmount });
+
+        // Send notification
+        const notifRef = db.collection("notifications").doc();
+        await notifRef.set({
+          userId: user.uid,
+          title: `Your investment ended in ${profitCycle?'PROFIT':'LOSS'}`,
+          message: `Amount: ₦${totalAmount.toFixed(2)} | Plan: ${plan.title}`,
+          read: false,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        historyData.push({plan: plan.title, amount: totalAmount, profit: profitCycle});
+      } else if(inv.status === "ended"){
+        historyData.push({plan: plans[inv.planId]?.title || 'Plan', amount: inv.finalAmount, profit: inv.result==='profit'});
+      }
+    }
+
+    loadHistoryChart(historyData);
+  }
+
+  processInvestments();
+  setInterval(processInvestments, 60000); // Check every minute
+});
+</script>
+</body>
+</html>
