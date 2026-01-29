@@ -4,43 +4,44 @@
 <meta charset="UTF-8">
 <title>Invest | Zyppayx</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
 body{background:#000;color:#eee;font-family:Arial;margin:0}
 .box{background:#111;margin:15px;padding:20px;border-radius:12px}
 h2{color:#bb86fc}
 select,input,button{width:100%;padding:12px;margin-top:10px;border-radius:8px;border:none}
-button{background:#bb86fc;color:#000;font-weight:bold}
+button{background:#bb86fc;color:#000;font-weight:bold;cursor:pointer}
 button:hover{opacity:.9}
 .plan-img{width:100%;border-radius:12px;margin-top:10px}
 .small{font-size:13px;color:#bbb;margin-top:5px}
-.bottom-nav{position:fixed;bottom:0;width:100%;background:#111;display:flex;justify-content:space-around;padding:10px 0;border-top:1px solid #333;}
-.bottom-nav button{flex:1;margin:0 5px;}
-canvas{background:#111;border-radius:12px;margin-top:15px;}
+.bottom-nav{position:fixed;bottom:0;width:100%;background:#111;display:flex;justify-content:space-around;padding:10px 0;border-top:1px solid #333}
+.bottom-nav button{flex:1;margin:0 5px}
 </style>
 </head>
 <body>
 
 <div class="box">
   <h2>Start Investment</h2>
-  <select id="planSelect"><option value="">Select Investment Plan</option></select>
+
+  <select id="planSelect">
+    <option value="">Select Investment Plan</option>
+  </select>
+
   <img id="planImg" class="plan-img" style="display:none">
+
   <div class="small" id="planInfo"></div>
+
   <input type="number" id="amount" placeholder="Enter amount (₦)">
+
   <button id="investBtn">Invest Now</button>
 </div>
 
-<div class="box">
-  <h2>Investment History</h2>
-  <canvas id="historyChart" width="400" height="200"></canvas>
-</div>
-
 <div class="bottom-nav">
-  <button onclick="location.href='dashboard.html'">🏠 Dashboard</button>
-  <button>💰 Invest</button>
-  <button onclick="location.href='profile.html'">👤 Profile</button>
+  <button onclick="location.href='dashboard.html'">🏠</button>
+  <button onclick="location.href='investment.html'">💰</button>
+  <button onclick="location.href='profile.html'">👤</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -59,12 +60,10 @@ const planSelect = document.getElementById("planSelect");
 const planImg = document.getElementById("planImg");
 const planInfo = document.getElementById("planInfo");
 const amountInput = document.getElementById("amount");
-const historyChartCanvas = document.getElementById("historyChart");
 
 let plans = {};
-let historyChart;
 
-// Load plans
+// Load investment plans
 db.collection("investmentPlans").onSnapshot(snap=>{
   planSelect.innerHTML = `<option value="">Select Investment Plan</option>`;
   snap.forEach(doc=>{
@@ -73,6 +72,7 @@ db.collection("investmentPlans").onSnapshot(snap=>{
   });
 });
 
+// Show plan details when selected
 planSelect.onchange = ()=>{
   const plan = plans[planSelect.value];
   if(!plan) return;
@@ -84,11 +84,11 @@ planSelect.onchange = ()=>{
     Min: ₦${plan.minAmount}<br>
     Max: ₦${plan.maxAmount}<br>
     Duration: ${plan.durationDays} days<br>
-    Cycles: ${plan.cycles || 1} | Profit: ${plan.profitPercentage || 100}% | Loss: ${plan.lossPercentage || 65}%
+    Profit: ${plan.profitPercent || 100}% | Loss: ${plan.lossPercent || 65}%
   `;
 };
 
-// Invest button
+// Invest now
 document.getElementById("investBtn").onclick = async ()=>{
   const user = auth.currentUser;
   if(!user) return alert("Please login");
@@ -107,26 +107,28 @@ document.getElementById("investBtn").onclick = async ()=>{
     await db.runTransaction(async tx=>{
       const userDoc = await tx.get(userRef);
       const balance = userDoc.data().balance || 0;
-
       if(balance < amount) throw "Insufficient balance";
 
       const startDate = new Date();
       const endDate = new Date();
-      endDate.setDate(endDate.getDate() + (plan.durationDays * (plan.cycles || 1)));
+      endDate.setDate(endDate.getDate() + plan.durationDays);
 
+      // Deduct balance
       tx.update(userRef, { balance: balance - amount });
 
-      tx.set(db.collection("userInvestments").doc(),{
+      // Add investment
+      const investRef = db.collection("userInvestments").doc();
+      tx.set(investRef, {
         userId: user.uid,
         planId,
         amount,
+        profitPercent: plan.profitPercent || 100,
+        lossPercent: plan.lossPercent || 65,
         status: "active",
         result: null,
         credited: false,
         startDate: firebase.firestore.Timestamp.fromDate(startDate),
         endDate: firebase.firestore.Timestamp.fromDate(endDate),
-        cyclesCompleted: 0,
-        totalCycles: plan.cycles || 1,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     });
@@ -139,84 +141,54 @@ document.getElementById("investBtn").onclick = async ()=>{
   }
 };
 
-// ---------------- AUTO-COMPOUND & HISTORY ----------------
-auth.onAuthStateChanged(user=>{
+// Auto-expire investments and credit balance
+auth.onAuthStateChanged(async user=>{
   if(!user) return;
 
-  function loadHistoryChart(historyData){
-    if(historyChart) historyChart.destroy();
-    historyChart = new Chart(historyChartCanvas,{
-      type: 'bar',
-      data: {
-        labels: historyData.map(d=>d.plan),
-        datasets: [{
-          label: 'Profit/Loss (₦)',
-          data: historyData.map(d=>d.amount),
-          backgroundColor: historyData.map(d=>d.profit? '#4caf50':'#f44336')
-        }]
-      },
-      options:{ responsive:true, scales:{y:{beginAtZero:true}}}
-    });
-  }
+  db.collection("userInvestments")
+    .where("userId","==",user.uid)
+    .where("status","==","active")
+    .onSnapshot(async snap=>{
+      const now = new Date();
+      for(const doc of snap.docs){
+        const inv = doc.data();
+        const endDate = inv.endDate?.toDate();
+        if(endDate && now >= endDate && !inv.credited){
+          const userRef = db.collection("users").doc(user.uid);
+          let creditAmount = inv.amount;
+          let message = "";
 
-  async function processInvestments(){
-    const now = new Date();
-    const historyData = [];
+          // Here, decide profit or loss (you manually update 'result' field)
+          if(inv.result === "profit") {
+            creditAmount = inv.amount * (inv.profitPercent/100);
+            message = "Your investment ended in PROFIT!";
+          } else if(inv.result === "loss") {
+            creditAmount = inv.amount * (inv.lossPercent/100);
+            message = "Your investment ended in LOSS!";
+          } else continue; // skip if not decided yet
 
-    const snap = await db.collection("userInvestments").where("userId","==",user.uid).get();
-    for(const doc of snap.docs){
-      let inv = doc.data();
-      if(inv.status === "active" && inv.endDate.toDate() <= now){
-        const planDoc = await db.collection("investmentPlans").doc(inv.planId).get();
-        const plan = planDoc.data();
-        const profitPct = plan.profitPercentage || 100;
-        const lossPct = plan.lossPercentage || 65;
+          await db.runTransaction(async tx=>{
+            const userDoc = await tx.get(userRef);
+            const currentBalance = userDoc.data().balance || 0;
+            tx.update(userRef,{ balance: currentBalance + creditAmount });
+            tx.update(doc.ref, { credited: true, status: "completed" });
+            // Add to history collection
+            tx.set(db.collection("userInvestmentHistory").doc(),{
+              userId: user.uid,
+              planId: inv.planId,
+              amount: inv.amount,
+              creditedAmount: creditAmount,
+              result: inv.result,
+              startDate: inv.startDate,
+              endDate: inv.endDate,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          });
 
-        // Simulate profit/loss per cycle
-        const cycles = inv.totalCycles || 1;
-        let totalAmount = inv.amount;
-        let profitCycle = true;
-        for(let i=0;i<cycles;i++){
-          const isProfit = Math.random() < 0.7; // 70% chance
-          totalAmount = isProfit ? totalAmount*(1+profitPct/100) : totalAmount*(lossPct/100);
-          profitCycle = isProfit;
+          alert(message + ` ₦${creditAmount} credited to your balance.`);
         }
-
-        // Update investment
-        await doc.ref.update({
-          status: "ended",
-          result: profitCycle?'profit':'loss',
-          credited: true,
-          finalAmount: totalAmount
-        });
-
-        // Credit user balance
-        const userRef = db.collection("users").doc(user.uid);
-        const userDoc = await userRef.get();
-        const currBalance = userDoc.data()?.balance || 0;
-        await userRef.update({ balance: currBalance + totalAmount });
-
-        // Send notification
-        const notifRef = db.collection("notifications").doc();
-        await notifRef.set({
-          userId: user.uid,
-          title: `Your investment ended in ${profitCycle?'PROFIT':'LOSS'}`,
-          message: `Amount: ₦${totalAmount.toFixed(2)} | Plan: ${plan.title}`,
-          read: false,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        historyData.push({plan: plan.title, amount: totalAmount, profit: profitCycle});
-      } else if(inv.status === "ended"){
-        historyData.push({plan: plans[inv.planId]?.title || 'Plan', amount: inv.finalAmount, profit: inv.result==='profit'});
       }
-    }
-
-    loadHistoryChart(historyData);
-  }
-
-  processInvestments();
-  setInterval(processInvestments, 60000); // Check every minute
+    });
 });
 </script>
 </body>
