@@ -2,194 +2,180 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Invest | Zyppayx</title>
+<title>Zyppayx Investments</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body{background:#000;color:#eee;font-family:Arial;margin:0}
-.box{background:#111;margin:15px;padding:20px;border-radius:12px}
-h2{color:#bb86fc}
-select,input,button{width:100%;padding:12px;margin-top:10px;border-radius:8px;border:none}
-button{background:#bb86fc;color:#000;font-weight:bold;cursor:pointer}
-button:hover{opacity:.9}
-.plan-img{width:100%;border-radius:12px;margin-top:10px}
-.small{font-size:13px;color:#bbb;margin-top:5px}
-.bottom-nav{position:fixed;bottom:0;width:100%;background:#111;display:flex;justify-content:space-around;padding:10px 0;border-top:1px solid #333}
-.bottom-nav button{flex:1;margin:0 5px}
+body { font-family: Arial; background: #000; margin: 0; color: #eee; }
+.box { background: #111; margin: 15px; padding: 20px; border-radius: 12px; }
+h2,h3 { color: #bb86fc; margin-bottom: 10px; }
+button { background: #bb86fc; color: #000; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; margin: 5px 5px 0 0; }
+button:hover { opacity: 0.9; }
+.investment-card { display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid #333; padding: 15px 0; }
+.investment-card img { width: 100%; border-radius: 12px; object-fit: cover; }
+.countdown { color: #bb86fc; margin-top: 5px; }
+.bottom-nav { position: fixed; bottom: 0; width: 100%; background: #111; display: flex; justify-content: space-around; padding: 10px 0; border-top: 1px solid #333; }
+.bottom-nav button { flex: 1; margin: 0 5px; }
 </style>
+<script src="https://js.paystack.co/v1/inline.js"></script>
 </head>
 <body>
 
-<div class="box">
-  <h2>Start Investment</h2>
-
-  <select id="planSelect">
-    <option value="">Select Investment Plan</option>
-  </select>
-
-  <img id="planImg" class="plan-img" style="display:none">
-
-  <div class="small" id="planInfo"></div>
-
-  <input type="number" id="amount" placeholder="Enter amount (₦)">
-
-  <button id="investBtn">Invest Now</button>
-</div>
+<div id="plansContainer"></div>
 
 <div class="bottom-nav">
-  <button onclick="location.href='dashboard.html'">🏠</button>
+  <button id="navDashboard">🏠</button>
   <button onclick="location.href='investment.html'">💰</button>
-  <button onclick="location.href='profile.html'">👤</button>
+  <button id="navProfile">👤</button>
 </div>
 
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <script>
-firebase.initializeApp({
+const firebaseConfig = {
   apiKey: "AIzaSyDaQrSeEcCIVOtQJwiEeS_86w11Hn-ITh8",
   authDomain: "zyppayx-57fbf.firebaseapp.com",
-  projectId: "zyppayx-57fbf"
-});
-
+  projectId: "zyppayx-57fbf",
+};
+firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-const planSelect = document.getElementById("planSelect");
-const planImg = document.getElementById("planImg");
-const planInfo = document.getElementById("planInfo");
-const amountInput = document.getElementById("amount");
+const PAYSTACK_KEY = "pk_live_d52baea87b2c4e49b110aa5cda32260b33b0cb35";
+const plansContainer = document.getElementById("plansContainer");
 
-let plans = {};
+auth.onAuthStateChanged(async user => {
+  if(!user) location.href="index.html";
 
-// Load investment plans
-db.collection("investmentPlans").onSnapshot(snap=>{
-  planSelect.innerHTML = `<option value="">Select Investment Plan</option>`;
-  snap.forEach(doc=>{
-    plans[doc.id] = doc.data();
-    planSelect.innerHTML += `<option value="${doc.id}">${doc.data().title}</option>`;
-  });
-});
+  const currentUserId = user.uid;
+  const currentUserEmail = user.email;
 
-// Show plan details when selected
-planSelect.onchange = ()=>{
-  const plan = plans[planSelect.value];
-  if(!plan) return;
+  // Load investment plans
+  db.collection("investmentPlans").orderBy("createdAt","desc").onSnapshot(snap=>{
+    plansContainer.innerHTML = "";
+    snap.forEach(doc=>{
+      const plan = doc.data();
+      if(plan.status !== "active") return;
 
-  planImg.src = plan.image;
-  planImg.style.display = "block";
-
-  planInfo.innerHTML = `
-    Min: ₦${plan.minAmount}<br>
-    Max: ₦${plan.maxAmount}<br>
-    Duration: ${plan.durationDays} days<br>
-    Profit: ${plan.profitPercent || 100}% | Loss: ${plan.lossPercent || 65}%
-  `;
-};
-
-// Invest now
-document.getElementById("investBtn").onclick = async ()=>{
-  const user = auth.currentUser;
-  if(!user) return alert("Please login");
-
-  const planId = planSelect.value;
-  const plan = plans[planId];
-  const amount = Number(amountInput.value);
-
-  if(!plan) return alert("Select a plan");
-  if(amount < plan.minAmount || amount > plan.maxAmount)
-    return alert("Invalid amount");
-
-  const userRef = db.collection("users").doc(user.uid);
-
-  try{
-    await db.runTransaction(async tx=>{
-      const userDoc = await tx.get(userRef);
-      const balance = userDoc.data().balance || 0;
-      if(balance < amount) throw "Insufficient balance";
-
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + plan.durationDays);
-
-      // Deduct balance
-      tx.update(userRef, { balance: balance - amount });
-
-      // Add investment
-      const investRef = db.collection("userInvestments").doc();
-      tx.set(investRef, {
-        userId: user.uid,
-        planId,
-        amount,
-        profitPercent: plan.profitPercent || 100,
-        lossPercent: plan.lossPercent || 65,
-        status: "active",
-        result: null,
-        credited: false,
-        startDate: firebase.firestore.Timestamp.fromDate(startDate),
-        endDate: firebase.firestore.Timestamp.fromDate(endDate),
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      const card = document.createElement("div");
+      card.className = "box investment-card";
+      card.innerHTML = `
+        <img src="${plan.imgUrl}" alt="${plan.name}">
+        <h3>${plan.name}</h3>
+        <p>Amount: ₦${plan.minAmount} - ₦${plan.maxAmount}</p>
+        <p>Duration: ${plan.durationDays} days</p>
+        <p>Profit: ${plan.profitPercent || 0}% | Loss: ${plan.lossPercent || 0}%</p>
+        <input type="number" placeholder="Enter Amount" min="${plan.minAmount}" max="${plan.maxAmount}" class="investAmount" data-plan-id="${doc.id}">
+        <button class="investBtn" data-plan-id="${doc.id}" data-min="${plan.minAmount}" data-max="${plan.maxAmount}" data-duration="${plan.durationDays}" data-profit="${plan.profitPercent || 0}" data-loss="${plan.lossPercent || 0}">Invest</button>
+        <p class="countdown" id="countdown-${doc.id}"></p>
+      `;
+      plansContainer.appendChild(card);
     });
+  });
 
-    alert("Investment started successfully!");
-    location.href="dashboard.html";
+  // Handle investment clicks with Paystack
+  document.addEventListener("click", async e=>{
+    if(!e.target.classList.contains("investBtn")) return;
 
-  }catch(err){
-    alert(err);
-  }
-};
+    const btn = e.target;
+    const planId = btn.dataset.planId;
+    const min = parseFloat(btn.dataset.min);
+    const max = parseFloat(btn.dataset.max);
+    const duration = parseInt(btn.dataset.duration);
+    const profit = parseFloat(btn.dataset.profit);
+    const loss = parseFloat(btn.dataset.loss);
 
-// Auto-expire investments and credit balance
-auth.onAuthStateChanged(async user=>{
-  if(!user) return;
+    const input = document.querySelector(`.investAmount[data-plan-id="${planId}"]`);
+    let amount = parseFloat(input.value);
 
+    if(!amount || amount < min || amount > max) { alert(`Enter amount between ₦${min} and ₦${max}`); return; }
+
+    // Paystack payment
+    PaystackPop.setup({
+      key: PAYSTACK_KEY,
+      email: currentUserEmail,
+      amount: amount * 100,
+      currency: "NGN",
+      callback: async () => {
+        const startDate = new Date();
+        const expireDate = new Date();
+        expireDate.setDate(startDate.getDate() + duration);
+
+        await db.collection("userInvestments").add({
+          userId: currentUserId,
+          planId,
+          amount,
+          duration,
+          profitPercent: profit,
+          lossPercent: loss,
+          startDate: firebase.firestore.FieldValue.serverTimestamp(),
+          expireDate,
+          status: "active",
+          returnedAmount: 0,
+          profitOrLoss: "" // manually set later
+        });
+
+        alert("Investment started!");
+        input.value = "";
+        startCountdown(expireDate, document.getElementById(`countdown-${planId}`));
+      },
+      onClose: () => alert("Payment cancelled")
+    }).openIframe();
+  });
+
+  // Auto-credit after profit/loss is manually set
   db.collection("userInvestments")
-    .where("userId","==",user.uid)
-    .where("status","==","active")
-    .onSnapshot(async snap=>{
-      const now = new Date();
-      for(const doc of snap.docs){
-        const inv = doc.data();
-        const endDate = inv.endDate?.toDate();
-        if(endDate && now >= endDate && !inv.credited){
-          const userRef = db.collection("users").doc(user.uid);
-          let creditAmount = inv.amount;
-          let message = "";
+    .where("userId", "==", currentUserId)
+    .onSnapshot(async snap => {
+      for(const change of snap.docChanges()){
+        if(change.type === "modified"){
+          const inv = change.doc.data();
+          if(inv.profitOrLoss && inv.status === "active" && inv.returnedAmount === 0){
+            const userRef = db.collection("users").doc(currentUserId);
+            const userDoc = await userRef.get();
+            const currentBalance = userDoc.data()?.balance || 0;
 
-          // Here, decide profit or loss (you manually update 'result' field)
-          if(inv.result === "profit") {
-            creditAmount = inv.amount * (inv.profitPercent/100);
-            message = "Your investment ended in PROFIT!";
-          } else if(inv.result === "loss") {
-            creditAmount = inv.amount * (inv.lossPercent/100);
-            message = "Your investment ended in LOSS!";
-          } else continue; // skip if not decided yet
+            let credit = inv.amount;
+            if(inv.profitOrLoss === "profit") credit += (inv.amount * (inv.profitPercent||0)/100);
+            else if(inv.profitOrLoss === "loss") credit -= (inv.amount * (inv.lossPercent||0)/100);
 
-          await db.runTransaction(async tx=>{
-            const userDoc = await tx.get(userRef);
-            const currentBalance = userDoc.data().balance || 0;
-            tx.update(userRef,{ balance: currentBalance + creditAmount });
-            tx.update(doc.ref, { credited: true, status: "completed" });
-            // Add to history collection
-            tx.set(db.collection("userInvestmentHistory").doc(),{
-              userId: user.uid,
-              planId: inv.planId,
-              amount: inv.amount,
-              creditedAmount: creditAmount,
-              result: inv.result,
-              startDate: inv.startDate,
-              endDate: inv.endDate,
-              createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-          });
+            await userRef.update({ balance: currentBalance + credit });
+            await db.collection("userInvestments").doc(change.doc.id).update({ returnedAmount: credit, status: "completed" });
 
-          alert(message + ` ₦${creditAmount} credited to your balance.`);
+            alert(`Investment ${inv.profitOrLoss.toUpperCase()} credited: ₦${credit}`);
+          }
         }
       }
     });
+
+  // Countdown function
+  function startCountdown(expireDate, element){
+    function updateCountdown(){
+      const now = new Date();
+      let diff = expireDate - now;
+      if(diff <= 0){
+        element.innerText = "Investment ended";
+        clearInterval(interval);
+        return;
+      }
+      const days = Math.floor(diff/(1000*60*60*24));
+      const hours = Math.floor((diff/(1000*60*60))%24);
+      const mins = Math.floor((diff/(1000*60))%60);
+      const secs = Math.floor((diff/1000)%60);
+      element.innerText = `Time Remaining: ${days}d ${hours}h ${mins}m ${secs}s`;
+    }
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+  }
+
 });
+
+// Bottom navigation logic same as dashboard
+document.getElementById("navDashboard").onclick = ()=>{ location.href='dashboard.html'; };
+document.getElementById("navProfile").onclick = ()=>{ location.href='dashboard.html'; }; // no separate profile page
 </script>
 </body>
 </html>
