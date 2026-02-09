@@ -6,18 +6,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body { font-family: Arial; background: #000; margin: 0; color: #eee; }
-.box { background: #111; margin: 15px; padding: 20px; border-radius: 12px; }
-h2,h3 { color: #bb86fc; margin-bottom: 10px; }
-button { background: #bb86fc; color: #000; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; margin: 5px 5px 0 0; }
-button:hover { opacity: 0.9; }
-.investment-card { display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid #333; padding: 15px 0; }
-.investment-card img { width: 100%; border-radius: 12px; object-fit: cover; }
-.countdown { color: #bb86fc; margin-top: 5px; }
+body { font-family: Arial, sans-serif; background: #000; margin: 0; color: #eee; }
+#plansContainer { padding: 15px; }
+.investment-card { background: #111; border-radius: 12px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 0 10px #222; }
+.investment-card img { width: 100%; height: 180px; object-fit: cover; }
+.investment-card .card-body { padding: 15px; }
+.investment-card h3 { color: #bb86fc; margin: 0 0 10px 0; font-size: 1.2em; }
+.investment-card p { margin: 5px 0; font-size: 0.95em; }
+.investment-card .highlight { color: #00fff0; font-weight: bold; }
+.investment-card .invest-btn { display: block; width: 100%; padding: 12px; margin-top: 10px; background: #bb86fc; color: #000; border: none; border-radius: 8px; cursor: pointer; font-size: 1em; }
+.investment-card .invest-btn:hover { opacity: 0.9; }
+.countdown { margin-top: 8px; font-size: 0.9em; color: #bb86fc; }
 .bottom-nav { position: fixed; bottom: 0; width: 100%; background: #111; display: flex; justify-content: space-around; padding: 10px 0; border-top: 1px solid #333; }
-.bottom-nav button { flex: 1; margin: 0 5px; }
+.bottom-nav button { flex: 1; margin: 0 5px; background: #222; color: #eee; border: none; border-radius: 8px; padding: 10px; cursor: pointer; }
+.bottom-nav button:hover { background: #333; }
 </style>
+
 <script src="https://js.paystack.co/v1/inline.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -29,11 +37,6 @@ button:hover { opacity: 0.9; }
   <button id="navProfile">👤</button>
 </div>
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyDaQrSeEcCIVOtQJwiEeS_86w11Hn-ITh8",
@@ -44,7 +47,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-const PAYSTACK_KEY = "pk_live_d52baea87b2c4e49b110aa5cda32260b33b0cb35";
+const PAYSTACK_KEY = "pk_live_d52baea87b2c4e49b110aa5cda32260b33b0cb35"; // Your live key
 const plansContainer = document.getElementById("plansContainer");
 
 auth.onAuthStateChanged(async user => {
@@ -53,32 +56,46 @@ auth.onAuthStateChanged(async user => {
   const currentUserId = user.uid;
   const currentUserEmail = user.email;
 
-  // Load investment plans
-  db.collection("investmentPlans").orderBy("createdAt","desc").onSnapshot(snap=>{
+  // Load active investment plans
+  db.collection("investmentPlans").orderBy("createdAt","desc").onSnapshot(snap => {
     plansContainer.innerHTML = "";
-    snap.forEach(doc=>{
+    if(snap.empty) {
+      plansContainer.innerHTML = "<p style='text-align:center; color:#bbb;'>No investment plans available</p>";
+      return;
+    }
+
+    snap.forEach(doc => {
       const plan = doc.data();
       if(plan.status !== "active") return;
 
+      const min = plan.minAmount || 0;
+      const max = plan.maxAmount || 0;
+      const duration = plan.durationDays || 1;
+      const profit = plan.profitPercent || 0;
+      const loss = plan.lossPercent || 0;
+
       const card = document.createElement("div");
-      card.className = "box investment-card";
+      card.className = "investment-card";
       card.innerHTML = `
-        <img src="${plan.imgUrl}" alt="${plan.name}">
-        <h3>${plan.name}</h3>
-        <p>Amount: ₦${plan.minAmount} - ₦${plan.maxAmount}</p>
-        <p>Duration: ${plan.durationDays} days</p>
-        <p>Profit: ${plan.profitPercent || 0}% | Loss: ${plan.lossPercent || 0}%</p>
-        <input type="number" placeholder="Enter Amount" min="${plan.minAmount}" max="${plan.maxAmount}" class="investAmount" data-plan-id="${doc.id}">
-        <button class="investBtn" data-plan-id="${doc.id}" data-min="${plan.minAmount}" data-max="${plan.maxAmount}" data-duration="${plan.durationDays}" data-profit="${plan.profitPercent || 0}" data-loss="${plan.lossPercent || 0}">Invest</button>
-        <p class="countdown" id="countdown-${doc.id}"></p>
+        <img src="${plan.imgUrl || 'https://via.placeholder.com/400x200'}" alt="${plan.name}">
+        <div class="card-body">
+          <h3>${plan.name}</h3>
+          <p>Amount: <span class="highlight">₦${min} - ₦${max}</span></p>
+          <p>Daily Earnings: <span class="highlight">₦${(min*profit/100).toLocaleString()}</span></p>
+          <p>Duration: <span class="highlight">${duration} days</span></p>
+          <p>Total Returns: <span class="highlight">₦${(min*(1+profit/100)*duration).toLocaleString()}</span></p>
+          <input type="number" placeholder="Enter Amount" min="${min}" max="${max}" class="investAmount" data-plan-id="${doc.id}">
+          <button class="invest-btn" data-plan-id="${doc.id}" data-min="${min}" data-max="${max}" data-duration="${duration}" data-profit="${profit}" data-loss="${loss}">Invest Now</button>
+          <p class="countdown" id="countdown-${doc.id}"></p>
+        </div>
       `;
       plansContainer.appendChild(card);
     });
   });
 
-  // Handle investment clicks with Paystack
-  document.addEventListener("click", async e=>{
-    if(!e.target.classList.contains("investBtn")) return;
+  // Handle Paystack investment
+  document.addEventListener("click", async e => {
+    if(!e.target.classList.contains("invest-btn")) return;
 
     const btn = e.target;
     const planId = btn.dataset.planId;
@@ -91,7 +108,10 @@ auth.onAuthStateChanged(async user => {
     const input = document.querySelector(`.investAmount[data-plan-id="${planId}"]`);
     let amount = parseFloat(input.value);
 
-    if(!amount || amount < min || amount > max) { alert(`Enter amount between ₦${min} and ₦${max}`); return; }
+    if(!amount || amount < min || amount > max) {
+      alert(`Enter amount between ₦${min} and ₦${max}`);
+      return;
+    }
 
     // Paystack payment
     PaystackPop.setup({
@@ -100,6 +120,7 @@ auth.onAuthStateChanged(async user => {
       amount: amount * 100,
       currency: "NGN",
       callback: async () => {
+        // Record investment in Firebase
         const startDate = new Date();
         const expireDate = new Date();
         expireDate.setDate(startDate.getDate() + duration);
@@ -115,10 +136,10 @@ auth.onAuthStateChanged(async user => {
           expireDate,
           status: "active",
           returnedAmount: 0,
-          profitOrLoss: "" // manually set later
+          profitOrLoss: "" // You will manually set this later
         });
 
-        alert("Investment started!");
+        alert("Investment started successfully!");
         input.value = "";
         startCountdown(expireDate, document.getElementById(`countdown-${planId}`));
       },
@@ -126,7 +147,7 @@ auth.onAuthStateChanged(async user => {
     }).openIframe();
   });
 
-  // Auto-credit after profit/loss is manually set
+  // Auto-credit when profit/loss is set
   db.collection("userInvestments")
     .where("userId", "==", currentUserId)
     .onSnapshot(async snap => {
@@ -151,7 +172,7 @@ auth.onAuthStateChanged(async user => {
       }
     });
 
-  // Countdown function
+  // Countdown
   function startCountdown(expireDate, element){
     function updateCountdown(){
       const now = new Date();
@@ -171,11 +192,10 @@ auth.onAuthStateChanged(async user => {
     const interval = setInterval(updateCountdown, 1000);
   }
 
+  // Bottom nav
+  document.getElementById("navDashboard").onclick = ()=>{ location.href='dashboard.html'; };
+  document.getElementById("navProfile").onclick = ()=>{ location.href='dashboard.html'; };
 });
-
-// Bottom navigation logic same as dashboard
-document.getElementById("navDashboard").onclick = ()=>{ location.href='dashboard.html'; };
-document.getElementById("navProfile").onclick = ()=>{ location.href='dashboard.html'; }; // no separate profile page
 </script>
 </body>
 </html>
