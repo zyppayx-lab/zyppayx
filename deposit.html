@@ -1,16 +1,16 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Deposit - Zyppayx</title>
+  <title>Deposit – Zyppayx</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <style>
     body {
       background: #000;
       color: #eee;
-      font-family: Arial;
+      font-family: Arial, sans-serif;
       margin: 0;
-      padding: 0;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -18,119 +18,141 @@
     }
     .container {
       max-width: 400px;
+      width: 100%;
       padding: 20px;
       background: #111;
       border-radius: 12px;
       text-align: center;
     }
-    h2 { color: #bb86fc; margin-bottom: 20px; }
+    h2 { color: #bb86fc; }
     input {
       width: 100%;
-      padding: 10px;
-      margin: 10px 0;
+      padding: 12px;
+      margin-top: 10px;
       border-radius: 8px;
-      border: 1px solid #555;
+      border: 1px solid #444;
       background: #222;
       color: #eee;
     }
     button {
       width: 100%;
-      padding: 12px;
-      background: #6a0dad;
-      color: #fff;
+      padding: 14px;
+      margin-top: 15px;
+      background: #bb86fc;
+      color: #000;
       border: none;
       border-radius: 8px;
+      font-size: 16px;
       cursor: pointer;
-      margin-top: 10px;
     }
     button:hover { opacity: 0.9; }
-    p { color: #ccc; font-size: 14px; }
+    .fee { margin-top: 8px; font-size: 14px; color: #aaa; }
   </style>
+
+  <!-- Paystack -->
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
 <div class="container">
   <h2>Deposit Funds</h2>
-  <input id="email" type="email" placeholder="Enter your email">
-  <input id="amount" type="number" placeholder="Enter amount in ₦">
-  <p id="feeText"></p>
+  <input type="number" id="amount" placeholder="Enter amount (₦)">
+  <div class="fee" id="feeText"></div>
   <button id="depositBtn">Proceed to Paystack</button>
-  <p><a href="dashboard.html" style="color:#bb86fc;">← Back to Dashboard</a></p>
 </div>
 
-<!-- Paystack JS SDK -->
-<script src="https://js.paystack.co/v1/inline.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-
 <script>
+/* 🔥 Firebase Config */
 const firebaseConfig = {
   apiKey: "AIzaSyDaQrSeEcCIVOtQJwiEeS_86w11Hn-ITh8",
   authDomain: "zyppayx-57fbf.firebaseapp.com",
-  projectId: "zyppayx-57fbf",
+  projectId: "zyppayx-57fbf"
 };
+
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+/* Elements */
 const amountInput = document.getElementById("amount");
-const emailInput = document.getElementById("email");
 const feeText = document.getElementById("feeText");
 const depositBtn = document.getElementById("depositBtn");
 
-amountInput.oninput = () => {
+let currentUser = null;
+
+/* 🔒 Allow ONLY logged-in users */
+auth.onAuthStateChanged(user => {
+  if (!user) {
+    location.href = "index.html";
+  } else {
+    currentUser = user;
+  }
+});
+
+/* Fee preview (5%) */
+amountInput.addEventListener("input", () => {
   const amt = Number(amountInput.value);
-  feeText.innerText = amt ? `Fee (5%): ₦${(amt * 0.05).toFixed(2)}` : '';
-};
+  feeText.textContent = amt
+    ? `Transaction Fee (5%): ₦${(amt * 0.05).toFixed(2)}`
+    : "";
+});
 
-depositBtn.onclick = async () => {
-  const user = auth.currentUser;
-  if(!user) return location.href="index.html";
+/* Deposit logic */
+depositBtn.addEventListener("click", () => {
+  if (!currentUser) return;
 
-  const email = emailInput.value.trim() || user.email;
-  const amt = Number(amountInput.value);
+  const amount = Number(amountInput.value);
+  if (!amount || amount < 100) {
+    alert("Minimum deposit is ₦100");
+    return;
+  }
 
-  if(!amt || amt <= 0) return alert("Enter a valid amount");
+  const fee = Number((amount * 0.05).toFixed(2));
+  const total = amount + fee;
 
-  const fee = (amt * 0.05).toFixed(2);
-  const total = amt + Number(fee);
-
-  var handler = PaystackPop.setup({
-    key: 'pk_live_d52baea87b2c4e49b110aa5cda32260b33b0cb35', // your live public key
-    email: email,
+  PaystackPop.setup({
+    key: "pk_live_d52baea87b2c4e49b110aa5cda32260b33b0cb35",
+    email: currentUser.email,
     amount: total * 100,
     currency: "NGN",
-    callback: async function(response){
-      alert('Payment complete! Reference: ' + response.reference);
 
-      // Update balance immediately
-      const userRef = db.collection("users").doc(user.uid);
-      await db.runTransaction(async transaction => {
-        const doc = await transaction.get(userRef);
-        const currentBalance = doc.data()?.balance || 0;
-        transaction.update(userRef, { balance: currentBalance + amt });
+    callback: async function (response) {
+      const userRef = db.collection("users").doc(currentUser.uid);
+
+      /* 💰 Auto-credit balance (amount ONLY) */
+      await db.runTransaction(async tx => {
+        const snap = await tx.get(userRef);
+        const balance = snap.data()?.balance || 0;
+        tx.update(userRef, { balance: balance + amount });
       });
 
-      // Save deposit record
+      /* 🧾 Save deposit record */
       await db.collection("deposits").add({
-        userId: user.uid,
-        email: user.email,
-        amount: amt,
-        fee: Number(fee),
+        userId: currentUser.uid,
+        email: currentUser.email,
+        amount: amount,
+        fee: fee,
+        totalPaid: total,
         reference: response.reference,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        status: "completed"
+        status: "completed",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
+      /* 🚀 Back to dashboard */
       location.href = "dashboard.html";
     },
-    onClose: function(){
-      alert('Payment cancelled.');
+
+    onClose: function () {
+      alert("Payment cancelled");
     }
-  });
-  handler.openIframe();
-};
+  }).openIframe();
+});
 </script>
+
 </body>
 </html>
