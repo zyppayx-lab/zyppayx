@@ -25,7 +25,8 @@
 
   <select id="bank">
     <option value="">Select Bank</option>
-    <!-- All Nigerian Banks -->
+
+    <!-- Commercial Banks -->
     <option>Access Bank</option>
     <option>Citibank</option>
     <option>Ecobank</option>
@@ -52,6 +53,7 @@
     <option>Unity Bank</option>
     <option>Wema Bank</option>
     <option>Zenith Bank</option>
+
     <!-- Microfinance / Digital Banks -->
     <option>Paycom</option>
     <option>Opay</option>
@@ -77,6 +79,7 @@
     <option>Kuda MFB</option>
     <option>Smartcash MFB</option>
     <option>Paga MFB</option>
+
   </select>
 
   <input type="text" id="accountName" placeholder="Account Name">
@@ -105,53 +108,54 @@ const feeText = document.getElementById("feeText");
 
 const MIN_WITHDRAWAL = 500;
 const MAX_WITHDRAWAL = 10000;
-const WITHDRAWAL_FEE = 0.07; // 7%
+const WITHDRAWAL_FEE = 0.07;
 
 amountInput.oninput = () => {
   const amt = Number(amountInput.value);
   feeText.innerText = amt ? `Withdrawal Fee (7%): ₦${(amt * WITHDRAWAL_FEE).toFixed(2)}` : '';
 };
 
-// Submit withdrawal request
+// Submit withdrawal
 document.getElementById("submitWithdraw").onclick = async () => {
   const user = auth.currentUser;
   if(!user) return location.href = "index.html";
 
   const amount = Number(amountInput.value);
-  const bank = document.getElementById("bank").value;
+  const bank = document.getElementById("bank").value.trim();
   const accountName = document.getElementById("accountName").value.trim();
   const accountNumber = document.getElementById("accountNumber").value.trim();
 
-  if(amount < MIN_WITHDRAWAL || amount > MAX_WITHDRAWAL) {
-    return alert(`Each withdrawal must be between ₦${MIN_WITHDRAWAL} and ₦${MAX_WITHDRAWAL}`);
+  if(amount < MIN_WITHDRAWAL || amount > MAX_WITHDRAWAL){
+    return alert(`Withdrawal must be between ₦${MIN_WITHDRAWAL} and ₦${MAX_WITHDRAWAL}`);
   }
   if(!bank || !accountName || !accountNumber) return alert("Please fill all fields");
 
-  // Get current balance
   const userRef = db.collection("users").doc(user.uid);
   const userDoc = await userRef.get();
   const balance = userDoc.data()?.balance || 0;
   if(balance < amount) return alert("Insufficient balance");
 
-  // Add withdrawal request
-  await db.collection("withdrawals").add({
-    userId: user.uid,
-    email: user.email,
-    amount,
-    fee: amount * WITHDRAWAL_FEE,
-    bank,
-    accountName,
-    accountNumber,
-    status: "pending",
-    deducted: false, // mark if deducted
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-
-  alert("Withdrawal request submitted! Balance will be deducted once approved.");
-  location.href = "dashboard.html";
+  try {
+    await db.collection("withdrawals").add({
+      userId: user.uid,
+      email: user.email,
+      amount,
+      fee: amount * WITHDRAWAL_FEE,
+      bank,
+      accountName,
+      accountNumber,
+      status: "pending",
+      deducted: false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    alert("Withdrawal request submitted! Admin will approve and deduct balance.");
+    location.href = "dashboard.html";
+  } catch(err) {
+    alert("Error submitting withdrawal: " + err);
+  }
 };
 
-// Real-time notification listener (optional)
+// Optional real-time notification
 auth.onAuthStateChanged(user => {
   if(!user) return;
   db.collection("withdrawals").where("userId","==",user.uid)
@@ -166,5 +170,6 @@ auth.onAuthStateChanged(user => {
     });
 });
 </script>
+
 </body>
-  </html>
+      </html>
