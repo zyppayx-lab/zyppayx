@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Zyppayxvest | Login</title>
+
+  <style>
+    body {
+      background: #f6f8fb;
+      font-family: Arial, Helvetica, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .auth-box {
+      background: #fff;
+      width: 100%;
+      max-width: 380px;
+      padding: 25px;
+      border-radius: 8px;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+    }
+
+    h2 {
+      text-align: center;
+      color: #0a1f44;
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #00c896;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .google-btn {
+      background: #4285f4;
+      margin-top: 10px;
+    }
+
+    .toggle-text {
+      text-align: center;
+      margin-top: 15px;
+      font-size: 14px;
+    }
+
+    .toggle-text span {
+      color: #00c896;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="auth-box">
+
+    <h2 id="formTitle">Login</h2>
+
+    <!-- Name field for signup -->
+    <input type="text" id="name" placeholder="Full Name" class="hidden" />
+
+    <!-- Phone field for signup -->
+    <input type="tel" id="phone" placeholder="Phone Number" class="hidden" />
+
+    <!-- Email -->
+    <input type="email" id="email" placeholder="Email address" />
+
+    <!-- Password -->
+    <input type="password" id="password" placeholder="Password" />
+
+    <!-- Referral code (optional) -->
+    <input type="text" id="referral" placeholder="Referral Code (optional)" class="hidden" />
+
+    <!-- Submit button -->
+    <button id="submitBtn">Login</button>
+
+    <!-- Google sign-in -->
+    <button class="google-btn" id="googleBtn">Continue with Google</button>
+
+    <!-- Toggle text -->
+    <div class="toggle-text">
+      <span id="toggleText">Don't have an account? Sign up</span>
+    </div>
+
+  </div>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import {
+      getAuth,
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword,
+      GoogleAuthProvider,
+      signInWithPopup
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
+      authDomain: "zyppayx-69c54.firebaseapp.com",
+      projectId: "zyppayx-69c54",
+      storageBucket: "zyppayx-69c54.firebasestorage.app",
+      messagingSenderId: "439535581166",
+      appId: "1:439535581166:web:994d1c9f75bd1294ef00ff"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    let isLogin = true;
+
+    const formTitle = document.getElementById("formTitle");
+    const submitBtn = document.getElementById("submitBtn");
+    const toggleText = document.getElementById("toggleText");
+    const nameInput = document.getElementById("name");
+    const phoneInput = document.getElementById("phone");
+    const referralInput = document.getElementById("referral");
+
+    toggleText.onclick = () => {
+      isLogin = !isLogin;
+
+      if (isLogin) {
+        formTitle.textContent = "Login";
+        submitBtn.textContent = "Login";
+        toggleText.textContent = "Don't have an account? Sign up";
+        nameInput.classList.add("hidden");
+        phoneInput.classList.add("hidden");
+        referralInput.classList.add("hidden");
+      } else {
+        formTitle.textContent = "Sign Up";
+        submitBtn.textContent = "Create Account";
+        toggleText.textContent = "Already have an account? Login";
+        nameInput.classList.remove("hidden");
+        phoneInput.classList.remove("hidden");
+        referralInput.classList.remove("hidden");
+      }
+    };
+
+    submitBtn.onclick = async () => {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      if (!email || !password) {
+        alert("Please fill all fields");
+        return;
+      }
+
+      try {
+        if (isLogin) {
+          await signInWithEmailAndPassword(auth, email, password);
+        } else {
+          const name = nameInput.value;
+          const phone = phoneInput.value;
+          const refCode = referralInput.value;
+
+          if (!name || !phone) {
+            alert("Please enter your name and phone number");
+            return;
+          }
+
+          const cred = await createUserWithEmailAndPassword(auth, email, password);
+          const uid = cred.user.uid;
+          const myRefCode = uid.slice(0, 6).toUpperCase();
+
+          await setDoc(doc(db, "users", uid), {
+            name,
+            email,
+            phone,
+            balance: 0,
+            totalEarnings: 0,
+            referrals: 0,
+            referralBonus: 0,
+            activeInvestment: 0,
+            referralCode: myRefCode,
+            createdAt: Date.now()
+          });
+
+          // Referral bonus
+          if (refCode) {
+            const refSnap = await getDoc(doc(db, "referrals", refCode));
+            if (refSnap.exists()) {
+              const refUid = refSnap.data().uid;
+              await updateDoc(doc(db, "users", refUid), {
+                referrals: increment(1),
+                referralBonus: increment(100),
+                balance: increment(100)
+              });
+            }
+          }
+
+          await setDoc(doc(db, "referrals", myRefCode), { uid });
+        }
+
+        window.location.href = "dashboard.html";
+      } catch (err) {
+        alert(err.message);
+      }
+    };
+
+    // Google Sign-In
+    document.getElementById("googleBtn").onclick = async () => {
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+
+        // Check if user exists in Firestore
+        const userRef = doc(db, "users", user.uid);
+        const snap = await getDoc(userRef);
+        if (!snap.exists()) {
+          // Create Firestore profile
+          const myRefCode = user.uid.slice(0,6).toUpperCase();
+          await setDoc(userRef, {
+            name: user.displayName || "No Name",
+            email: user.email,
+            phone: user.phoneNumber || "",
+            balance: 0,
+            totalEarnings: 0,
+            referrals: 0,
+            referralBonus: 0,
+            activeInvestment: 0,
+            referralCode: myRefCode,
+            createdAt: Date.now()
+          });
+
+          await setDoc(doc(db, "referrals", myRefCode), { uid: user.uid });
+        }
+
+        window.location.href = "dashboard.html";
+      } catch(err) {
+        alert(err.message);
+      }
+    };
+  </script>
+
+</body>
+</html>
