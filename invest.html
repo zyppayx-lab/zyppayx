@@ -2,176 +2,164 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Invest</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zyppayxvest | Invest</title>
 <style>
-body{font-family:Arial;background:#f6f8fb;margin:0}
-h3{text-align:center;margin-top:15px}
+body { margin:0; font-family: Arial, Helvetica, sans-serif; background:#f6f8fb;}
+header { background:#0a1f44;color:#fff;padding:20px;text-align:center;font-size:20px;}
+.container { max-width:1100px;margin:auto;padding:15px;}
+.card { background:#fff;padding:18px;border-radius:12px;margin-bottom:20px;box-shadow:0 4px 12px rgba(0,0,0,0.05);}
+.card h3 { margin:0 0 10px 0; font-size:16px; color:#0a1f44;}
+.card p { margin:4px 0; font-size:14px; color:#666;}
+.card img { width:100%; border-radius:12px; margin-bottom:10px;}
+.amount-input { width:100%; padding:10px; margin-top:8px; border-radius:8px; border:1px solid #ddd; font-size:14px;}
+.quick-amounts { display:flex; gap:10px; margin-top:8px;}
+.quick-amounts button { flex:1; padding:10px; border:none; border-radius:8px; background:#00c896; color:#fff; cursor:pointer;}
+button.main-btn { margin-top:10px; padding:12px; background:#0a1f44; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; width:100%;}
 
-.card{
-  background:#fff;
-  margin:15px;
-  padding:16px;
-  border-radius:14px;
-  box-shadow:0 4px 10px rgba(0,0,0,.05)
-}
-
-.card img{width:100%;border-radius:12px;margin-bottom:8px}
-
-.active{border-left:5px solid #00c896}
-.locked{color:#e74c3c;font-weight:bold}
-.ready{color:#00c896;font-weight:bold}
-
-input{
-  width:100%;
-  padding:10px;
-  margin-top:8px;
-  border-radius:8px;
-  border:1px solid #ddd
-}
-
-button{
-  width:100%;
-  padding:12px;
-  border:none;
-  border-radius:10px;
-  background:#0a1f44;
-  color:#fff;
-  margin-top:10px;
-  cursor:pointer
-}
+.lock {color:#e74c3c;font-weight:bold}
+.ready {color:#00c896;font-weight:bold}
+button.withdraw-btn {width:100%;padding:12px;border:none;border-radius:10px;margin-top:8px;background:#00c896;color:#fff;cursor:pointer;}
+button.disabled {background:#ccc;cursor:not-allowed;}
 </style>
 </head>
-
 <body>
 
-<h3>My Active Investments</h3>
-<div id="activeInvestments"></div>
+<header>Invest in Plans & Active Investments</header>
+<div class="container" id="plansContainer">
+  <p>Loading investment plans...</p>
+</div>
 
-<h3>Available Investment Plans</h3>
-<div id="plans"></div>
+<h3 style="margin-left:15px;">My Active Investments</h3>
+<div class="container" id="activeInvestments">
+  <p>Loading your investments...</p>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import {
-  getFirestore, collection, getDocs
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, getDocs, doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-/* Firebase */
-const app = initializeApp({
-  apiKey:"AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
-  authDomain:"zyppayx-69c54.firebaseapp.com",
-  projectId:"zyppayx-69c54"
-});
+const firebaseConfig = {
+  apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
+  authDomain: "zyppayx-69c54.firebaseapp.com",
+  projectId: "zyppayx-69c54"
+};
+
+const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-/* ================= AUTH ================= */
-onAuthStateChanged(auth,user=>{
-  if(!user){ location.href="login.html"; return; }
+let currentUserId = "";
 
-  loadActiveInvestments(user.uid);
+onAuthStateChanged(auth, user => {
+  if (!user) { window.location.href = "login.html"; return; }
+  currentUserId = user.uid;
   loadPlans();
+  loadActiveInvestments();
 });
 
-/* ================= ACTIVE INVESTMENTS ================= */
-async function loadActiveInvestments(uid){
-  const box = document.getElementById("activeInvestments");
-  box.innerHTML="";
+async function loadPlans() {
+  const plansRef = collection(db, "investmentPlans");
+  const snap = await getDocs(plansRef);
+  const container = document.getElementById("plansContainer");
+  container.innerHTML = "";
 
-  const snap = await getDocs(collection(db,"users",uid,"investments"));
-  if(snap.empty){ box.innerHTML="<p style='text-align:center'>No active investments</p>"; return; }
+  if (snap.empty) { container.innerHTML = "<p>No investment plans available.</p>"; return; }
 
-  snap.forEach(d=>{
-    const inv = d.data();
-    if(inv.status !== "active") return;
-
-    const maturity = inv.approvedAt + (inv.duration*86400000);
+  snap.forEach(planDoc => {
+    const plan = planDoc.data();
+    if (plan.status !== "active") return;
 
     const card = document.createElement("div");
-    card.className="card active";
+    card.className = "card";
+
+    card.innerHTML = `
+      <img src="${plan.image}" onerror="this.src='placeholder.png';">
+      <h3>${plan.title}</h3>
+      <p>Duration: ${plan.duration} days</p>
+      <p>ROI: ${plan.roiPercent}%</p>
+      <p>Minimum Amount: ₦${plan.minAmount}</p>
+      <input class="amount-input" placeholder="Enter amount ≥ ${plan.minAmount}" type="number" min="${plan.minAmount}" />
+      <div class="quick-amounts">
+        <button>₦${plan.minAmount}</button>
+        <button>₦${plan.minAmount*2}</button>
+        <button>₦${plan.minAmount*5}</button>
+      </div>
+      <button class="main-btn">Invest</button>
+    `;
+
+    const input = card.querySelector(".amount-input");
+
+    card.querySelectorAll(".quick-amounts button").forEach(btn => {
+      btn.onclick = () => { input.value = btn.textContent.replace("₦",""); }
+    });
+
+    card.querySelector(".main-btn").onclick = () => {
+      const amt = Number(input.value);
+      if (!amt || amt < plan.minAmount) { alert(`Enter amount ≥ ₦${plan.minAmount}`); return; }
+      window.location.href = `manual-payment.html?planId=${planDoc.id}&amount=${amt}`;
+    };
+
+    container.appendChild(card);
+  });
+}
+
+// Load active investments
+async function loadActiveInvestments() {
+  const invRef = collection(db, "users", currentUserId, "investments");
+  const snap = await getDocs(invRef);
+  const container = document.getElementById("activeInvestments");
+  container.innerHTML = "";
+
+  if (snap.empty) { container.innerHTML = "<p>No active investments.</p>"; return; }
+
+  snap.forEach(docSnap => {
+    const inv = docSnap.data();
+    const card = document.createElement("div");
+    card.className = "card";
 
     const timer = document.createElement("p");
+    const withdrawBtn = document.createElement("button");
+    withdrawBtn.textContent = "Withdraw";
+    withdrawBtn.className = "disabled";
+    withdrawBtn.disabled = true;
 
-    function updateTimer(){
-      const diff = maturity - Date.now();
-      if(diff<=0){ timer.innerHTML="<span class='ready'>Matured</span>"; }
-      else{
-        const d=Math.floor(diff/86400000);
-        const h=Math.floor(diff%86400000/3600000);
-        const m=Math.floor(diff%3600000/60000);
-        const s=Math.floor(diff%60000/1000);
-        timer.innerHTML=`<span class="locked">Locked:</span> ${d}d ${h}h ${m}m ${s}s`;
+    card.innerHTML = `
+      <h4>${inv.planId}</h4>
+      <p>Amount: ₦${inv.amount}</p>
+    `;
+    card.appendChild(timer);
+    card.appendChild(withdrawBtn);
+    container.appendChild(card);
+
+    function updateTimer() {
+      const createdAt = inv.createdAt?.seconds ? inv.createdAt.seconds*1000 : inv.createdAt;
+      const durationMs = (inv.duration || 0) * 24 * 60 * 60 * 1000;
+      const maturity = createdAt + durationMs;
+      const now = Date.now();
+      const diff = maturity - now;
+
+      if (diff <= 0) {
+        timer.innerHTML = "<span class='ready'>Investment matured</span>";
+        withdrawBtn.disabled = false;
+        withdrawBtn.className = "withdraw-btn";
+        withdrawBtn.onclick = () => alert("Withdraw flow here");
+        if (inv.status !== "matured") updateDoc(doc(db,"users",currentUserId,"investments",docSnap.id), {status:"matured"});
+      } else {
+        const d = Math.floor(diff/86400000);
+        const h = Math.floor((diff%86400000)/3600000);
+        const m = Math.floor((diff%3600000)/60000);
+        const s = Math.floor((diff%60000)/1000);
+        timer.innerHTML = `<span class="lock">Locked:</span> ${d}d ${h}h ${m}m ${s}s`;
       }
     }
 
-    setInterval(updateTimer,1000);
+    setInterval(updateTimer, 1000);
     updateTimer();
-
-    card.innerHTML=`
-      <h4>${inv.planTitle}</h4>
-      <p>Amount: ₦${inv.amount}</p>
-      <p>ROI: ${inv.roiPercent}%</p>
-      <p>Total Return: ₦${inv.totalReturn}</p>
-    `;
-    card.appendChild(timer);
-    box.appendChild(card);
-  });
-}
-
-/* ================= PLANS ================= */
-async function loadPlans(){
-  const box = document.getElementById("plans");
-  box.innerHTML="";
-
-  const snap = await getDocs(collection(db,"investmentPlans"));
-  if(snap.empty){ box.innerHTML="<p style='text-align:center'>No plans available</p>"; return; }
-
-  snap.forEach(docSnap=>{
-    const p = docSnap.data();
-    if(p.status!=="active") return;
-
-    const card = document.createElement("div");
-    card.className="card";
-
-    card.innerHTML=`
-      <img src="${p.image || 'placeholder.png'}" alt="Plan Image">
-      <h4>${p.title}</h4>
-      <p>ROI: ${p.roiPercent}%</p>
-      <p>Min: ₦${p.minAmount} | Max: ₦${p.maxAmount}</p>
-      <p>Duration: ${p.duration} days</p>
-      <input type="number" placeholder="Enter amount">
-      <button>Invest</button>
-    `;
-
-    const input = card.querySelector("input");
-    const btn = card.querySelector("button");
-
-    btn.onclick=()=>{
-      const amount = Number(input.value);
-      if(!amount){ alert("Enter amount"); return; }
-      if(amount < p.minAmount){ alert(`Minimum is ₦${p.minAmount}`); return; }
-      if(amount > p.maxAmount){ alert(`Maximum is ₦${p.maxAmount}`); return; }
-
-      const profit = amount * p.roiPercent/100;
-      const totalReturn = amount + profit;
-
-      /* Overwrite old plan in localStorage */
-      localStorage.setItem("inv_plan", docSnap.id);
-      localStorage.setItem("inv_title", p.title);
-      localStorage.setItem("inv_amount", amount);
-      localStorage.setItem("inv_roi", p.roiPercent);
-      localStorage.setItem("inv_profit", profit);
-      localStorage.setItem("inv_total", totalReturn);
-      localStorage.setItem("inv_duration", p.duration);
-
-      location.href="manual-payment.html";
-    };
-
-    box.appendChild(card);
   });
 }
 </script>
+
 </body>
 </html>
