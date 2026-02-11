@@ -2,95 +2,133 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Invest | Zyppayx</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invest</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
-body{
-  margin:0;
-  font-family:Arial,Helvetica,sans-serif;
-  background:#f4f6fa;
-}
+body{font-family:Arial;background:#f6f8fb;margin:0}
+h3{text-align:center;margin-top:15px}
 
-h2{
-  text-align:center;
-  margin:15px 0;
-}
-
-.plan{
+.card{
   background:#fff;
   margin:15px;
   padding:16px;
-  border-radius:16px;
-  box-shadow:0 6px 20px rgba(0,0,0,.08);
+  border-radius:14px;
+  box-shadow:0 4px 10px rgba(0,0,0,.05)
 }
 
-.plan img{
-  width:100%;
-  border-radius:12px;
-  margin-bottom:10px;
-}
-
-.plan h4{
-  margin:8px 0;
-}
-
-.plan p{
-  font-size:14px;
-  color:#555;
-}
+.active{border-left:5px solid #00c896}
+.locked{color:#e74c3c;font-weight:bold}
+.ready{color:#00c896;font-weight:bold}
 
 input{
   width:100%;
-  padding:12px;
-  border-radius:10px;
-  border:1px solid #ccc;
+  padding:10px;
   margin-top:8px;
-  font-size:15px;
+  border-radius:8px;
+  border:1px solid #ddd
 }
 
 button{
   width:100%;
-  padding:14px;
-  margin-top:12px;
+  padding:12px;
   border:none;
-  border-radius:12px;
-  background:#00c896;
+  border-radius:10px;
+  background:#0a1f44;
   color:#fff;
-  font-weight:bold;
-  font-size:15px;
+  margin-top:10px;
+  cursor:pointer
 }
 </style>
 </head>
 
 <body>
 
-<h2>Investment Plans</h2>
+<h3>My Active Investments</h3>
+<div id="activeInvestments"></div>
+
+<h3>Available Investment Plans</h3>
 <div id="plans"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import {
+  getFirestore, collection, getDocs
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
-  authDomain: "zyppayx-69c54.firebaseapp.com",
-  projectId: "zyppayx-69c54"
-};
+/* 🔐 Firebase */
+const app = initializeApp({
+  apiKey:"AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
+  authDomain:"zyppayx-69c54.firebaseapp.com",
+  projectId:"zyppayx-69c54"
+});
 
-const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+/* ================= AUTH ================= */
 onAuthStateChanged(auth,user=>{
   if(!user){
-    window.location.href="login.html";
+    location.href="login.html";
     return;
   }
+
+  loadActiveInvestments(user.uid);
   loadPlans();
 });
 
+/* ================= ACTIVE INVESTMENTS ================= */
+async function loadActiveInvestments(uid){
+  const box = document.getElementById("activeInvestments");
+  box.innerHTML = "";
+
+  const snap = await getDocs(collection(db,"users",uid,"investments"));
+
+  if(snap.empty){
+    box.innerHTML="<p style='text-align:center'>No active investments</p>";
+    return;
+  }
+
+  snap.forEach(d=>{
+    const inv = d.data();
+    if(inv.status !== "active") return;
+
+    const maturity = inv.approvedAt + (inv.duration * 86400000);
+
+    const card = document.createElement("div");
+    card.className="card active";
+
+    const timer = document.createElement("p");
+
+    function updateTimer(){
+      const diff = maturity - Date.now();
+      if(diff <= 0){
+        timer.innerHTML="<span class='ready'>Matured</span>";
+      }else{
+        const d=Math.floor(diff/86400000);
+        const h=Math.floor(diff%86400000/3600000);
+        const m=Math.floor(diff%3600000/60000);
+        const s=Math.floor(diff%60000/1000);
+        timer.innerHTML=`<span class="locked">Locked:</span> ${d}d ${h}h ${m}m ${s}s`;
+      }
+    }
+
+    setInterval(updateTimer,1000);
+    updateTimer();
+
+    card.innerHTML=`
+      <h4>${inv.planTitle}</h4>
+      <p>Amount: ₦${inv.amount}</p>
+      <p>ROI: ${inv.roiPercent}%</p>
+      <p>Total Return: ₦${inv.totalReturn}</p>
+    `;
+    card.appendChild(timer);
+    box.appendChild(card);
+  });
+}
+
+/* ================= PLANS ================= */
 async function loadPlans(){
   const box = document.getElementById("plans");
   box.innerHTML="";
@@ -99,42 +137,57 @@ async function loadPlans(){
 
   snap.forEach(docSnap=>{
     const p = docSnap.data();
+    if(p.status !== "active") return;
 
-    const div = document.createElement("div");
-    div.className="plan";
+    const card = document.createElement("div");
+    card.className="card";
 
-    div.innerHTML = `
-      <img src="${p.image || 'https://via.placeholder.com/300'}">
-      <h4>${p.name}</h4>
-      <p>Duration: ${p.duration} days</p>
-      <p>ROI: ${p.roi}%</p>
-
-      <input type="number" placeholder="Enter amount to invest" min="1">
+    card.innerHTML=`
+      <h4>${p.title}</h4>
+      <p>ROI: ${p.roiPercent}%</p>
+      <p>Min: ₦${p.minAmount} | Max: ₦${p.maxAmount}</p>
+      <input type="number" placeholder="Enter amount">
       <button>Invest</button>
     `;
 
-    const input = div.querySelector("input");
-    const btn = div.querySelector("button");
+    const input = card.querySelector("input");
+    const btn = card.querySelector("button");
 
-    btn.onclick = ()=>{
+    btn.onclick=()=>{
       const amount = Number(input.value);
 
-      if(!amount || amount <= 0){
-        alert("Enter a valid amount");
+      if(!amount){
+        alert("Enter amount");
         return;
       }
 
-      localStorage.setItem("investAmount", amount);
-      localStorage.setItem("investPlan", p.name);
-      localStorage.setItem("investDuration", p.duration);
+      if(amount < p.minAmount){
+        alert(`Minimum is ₦${p.minAmount}`);
+        return;
+      }
 
-      window.location.href = "manual-payment.html";
+      if(amount > p.maxAmount){
+        alert(`Maximum is ₦${p.maxAmount}`);
+        return;
+      }
+
+      const profit = amount * p.roiPercent / 100;
+      const totalReturn = amount + profit;
+
+      localStorage.setItem("inv_plan", docSnap.id);
+      localStorage.setItem("inv_title", p.title);
+      localStorage.setItem("inv_amount", amount);
+      localStorage.setItem("inv_roi", p.roiPercent);
+      localStorage.setItem("inv_profit", profit);
+      localStorage.setItem("inv_total", totalReturn);
+      localStorage.setItem("inv_duration", p.duration);
+
+      location.href="manual-payment.html";
     };
 
-    box.appendChild(div);
+    box.appendChild(card);
   });
 }
 </script>
-
 </body>
 </html>
