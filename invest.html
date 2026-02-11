@@ -2,19 +2,53 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>My Investments</title>
+<title>Invest</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
 body{font-family:Arial;background:#f6f8fb;margin:0}
-.card{background:#fff;margin:15px;padding:16px;border-radius:14px}
+h3{padding:15px}
+.card{
+  background:#fff;
+  margin:15px;
+  padding:15px;
+  border-radius:14px;
+  box-shadow:0 4px 10px rgba(0,0,0,.06)
+}
+img{
+  width:100%;
+  border-radius:10px;
+  margin-bottom:10px
+}
+input{
+  width:100%;
+  padding:10px;
+  margin-top:8px;
+  border-radius:8px;
+  border:1px solid #ccc
+}
+button{
+  width:100%;
+  margin-top:10px;
+  padding:12px;
+  border:none;
+  border-radius:10px;
+  background:#00c896;
+  color:#fff;
+  font-weight:bold;
+  cursor:pointer
+}
 .lock{color:#e74c3c;font-weight:bold}
 .ready{color:#00c896;font-weight:bold}
 </style>
 </head>
 <body>
 
-<h3 style="text-align:center">Active Investments</h3>
-<div id="list"></div>
+<h3>Investment Plans</h3>
+<div id="plans"></div>
+
+<h3>Active Investments</h3>
+<div id="active"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -39,57 +73,100 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 onAuthStateChanged(auth, async user => {
-  if (!user) return;
+  if (!user) location.href = "login.html";
+
+  loadPlans();
+  loadActive(user.uid);
+});
+
+async function loadPlans(){
+  const box = document.getElementById("plans");
+  box.innerHTML = "";
 
   const q = query(
-    collection(db, "investments"),
-    where("userId", "==", user.uid),
-    where("status", "==", "approved")
+    collection(db, "investmentPlans"),
+    where("status", "==", "active")
   );
 
   const snap = await getDocs(q);
-  const box = document.getElementById("list");
-  box.innerHTML = "";
 
-  for (const d of snap.docs) {
-    const inv = d.data();
-    const planSnap = await getDoc(doc(db, "investmentPlans", inv.planId));
-    if (!planSnap.exists()) continue;
-
-    const p = planSnap.data();
-    const start = inv.startDate?.toMillis();
-    const end = inv.endDate?.toMillis();
+  snap.forEach(d => {
+    const p = d.data();
 
     const card = document.createElement("div");
     card.className = "card";
 
+    card.innerHTML = `
+      <img src="${p.image}">
+      <h4>${p.title}</h4>
+      <p>ROI: ${p.roiPercent}%</p>
+      <p>Duration: ${p.duration} days</p>
+      <p>Min: ₦${p.minAmount} | Max: ₦${p.maxAmount}</p>
+      <input type="number" placeholder="Enter amount" min="${p.minAmount}">
+      <button>Invest</button>
+    `;
+
+    const input = card.querySelector("input");
+    const btn = card.querySelector("button");
+
+    btn.onclick = () => {
+      const amt = Number(input.value);
+      if (amt < p.minAmount || amt > p.maxAmount) {
+        alert(`Amount must be between ₦${p.minAmount} and ₦${p.maxAmount}`);
+        return;
+      }
+      location.href = `manual-payment.html?planId=${d.id}&amount=${amt}`;
+    };
+
+    box.appendChild(card);
+  });
+}
+
+async function loadActive(uid){
+  const box = document.getElementById("active");
+  box.innerHTML = "";
+
+  const q = query(
+    collection(db,"investments"),
+    where("userId","==",uid),
+    where("status","==","approved")
+  );
+
+  const snap = await getDocs(q);
+
+  snap.forEach(async d=>{
+    const inv = d.data();
+    const planSnap = await getDoc(doc(db,"investmentPlans",inv.planId));
+    if(!planSnap.exists()) return;
+
+    const p = planSnap.data();
+    const end = inv.endDate?.toMillis();
     const timer = document.createElement("p");
 
-    function update() {
+    function tick(){
       const diff = end - Date.now();
-      if (diff <= 0) {
-        timer.innerHTML = "<span class='ready'>Matured</span>";
-      } else {
-        const d = Math.floor(diff / 86400000);
-        const h = Math.floor((diff % 86400000) / 3600000);
-        const m = Math.floor((diff % 3600000) / 60000);
-        timer.innerHTML = `<span class="lock">Locked:</span> ${d}d ${h}h ${m}m`;
+      if(diff<=0){
+        timer.innerHTML="<span class='ready'>Matured</span>";
+      }else{
+        const d=Math.floor(diff/86400000);
+        const h=Math.floor((diff%86400000)/3600000);
+        timer.innerHTML=`<span class="lock">Locked:</span> ${d}d ${h}h`;
       }
     }
+    setInterval(tick,1000);
+    tick();
 
-    setInterval(update, 1000);
-    update();
-
-    card.innerHTML = `
+    const card=document.createElement("div");
+    card.className="card";
+    card.innerHTML=`
       <h4>${p.title}</h4>
       <p>Amount: ₦${inv.amount}</p>
       <p>ROI: ${p.roiPercent}%</p>
-      <p>Duration: ${p.duration} days</p>
     `;
     card.appendChild(timer);
     box.appendChild(card);
-  }
-});
+  });
+}
 </script>
 </body>
 </html>
