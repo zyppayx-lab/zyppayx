@@ -4,62 +4,51 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zyppayxvest | Invest</title>
+
 <style>
-body { margin:0; font-family: Arial, Helvetica, sans-serif; background:#f6f8fb;}
-header { background:#0a1f44;color:#fff;padding:20px;text-align:center;font-size:20px;}
-.container { max-width:1100px;margin:auto;padding:15px;}
-.card { background:#fff;padding:18px;border-radius:12px;margin-bottom:20px;box-shadow:0 4px 12px rgba(0,0,0,0.05);}
-.card h3 { margin:0 0 10px 0; font-size:16px; color:#0a1f44;}
-.card p { margin:4px 0; font-size:14px; color:#666;}
-.card img { width:100%; border-radius:12px; margin-bottom:10px;}
-.amount-input { width:100%; padding:10px; margin-top:8px; border-radius:8px; border:1px solid #ddd; font-size:14px;}
-.quick-amounts { display:flex; gap:10px; margin-top:8px;}
-.quick-amounts button { flex:1; padding:10px; border:none; border-radius:8px; background:#00c896; color:#fff; cursor:pointer;}
-button.main-btn { margin-top:10px; padding:12px; background:#0a1f44; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; width:100%;}
-.loader-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); justify-content:center; align-items:center; z-index:1000; flex-direction:column;}
-.loader { border:6px solid #f3f3f3; border-top:6px solid #00c896; border-radius:50%; width:50px; height:50px; animation:spin 1s linear infinite;}
-@keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
-.success-tick { display:none; color:#00c896; font-size:50px; animation:scaleUp 0.5s forwards; margin-top:10px;}
-@keyframes scaleUp { 0% { transform:scale(0); } 100% { transform:scale(1); } }
-nav { position:fixed; bottom:0; width:100%; background:#fff; border-top:1px solid #ddd; display:flex; justify-content:space-around; padding:10px 0;}
-nav a { text-decoration:none; color:#555; font-size:13px; text-align:center;}
-nav a.active { color:#00c896; font-weight:bold;}
+body{margin:0;font-family:Arial;background:#f6f8fb}
+header{background:#0a1f44;color:#fff;padding:20px;text-align:center;font-size:20px}
+.container{max-width:1100px;margin:auto;padding:15px}
+.card{background:#fff;padding:18px;border-radius:14px;margin-bottom:20px;box-shadow:0 4px 12px rgba(0,0,0,.05)}
+.card img{width:100%;border-radius:12px;margin-bottom:10px}
+.card h3{margin:0;color:#0a1f44}
+.card p{color:#666;font-size:14px}
+.amount{width:100%;padding:12px;border-radius:10px;border:1px solid #ddd;margin-top:8px}
+.quick{display:flex;gap:8px;margin-top:8px}
+.quick button{flex:1;background:#00c896;color:#fff;border:none;padding:10px;border-radius:8px}
+.main{margin-top:12px;background:#0a1f44;color:#fff;border:none;width:100%;padding:14px;border-radius:12px;font-weight:bold}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);align-items:center;justify-content:center;flex-direction:column;z-index:999}
+.loader{width:45px;height:45px;border:5px solid #eee;border-top:5px solid #00c896;border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tick{display:none;font-size:50px;color:#00c896;margin-top:10px}
 </style>
+
 <script src="https://js.paystack.co/v1/inline.js"></script>
 </head>
+
 <body>
 
-<header>Choose an Investment Plan</header>
-<div class="container" id="plansContainer">
-  <p>Loading investment plans...</p>
+<header>Choose Investment Plan</header>
+
+<div class="container" id="plans">
+  <p>Loading plans...</p>
 </div>
 
-<div class="loader-overlay" id="loader">
+<div class="overlay" id="overlay">
   <div class="loader"></div>
-  <p style="color:#fff; margin-top:10px;">Processing payment...</p>
-  <div class="success-tick" id="successTick">&#10003;</div>
+  <p style="color:#fff;margin-top:10px">Processing payment...</p>
+  <div class="tick" id="tick">✔</div>
 </div>
-
-<nav>
-  <a href="dashboard.html">Home</a>
-  <a href="invest.html" class="active">Invest</a>
-  <a href="refer.html">Refer</a>
-  <a href="alert.html">Alerts</a>
-  <a href="profile.html">Profile</a>
-</nav>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, getDocs, addDoc, doc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
   authDomain: "zyppayx-69c54.firebaseapp.com",
-  projectId: "zyppayx-69c54",
-  storageBucket: "zyppayx-69c54.firebasestorage.app",
-  messagingSenderId: "439535581166",
-  appId: "1:439535581166:web:994d1c9f75bd1294ef00ff"
+  projectId: "zyppayx-69c54"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -67,103 +56,88 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 const PAYSTACK_KEY = "pk_live_d52baea87b2c4e49b110aa5cda32260b33b0cb35";
-let currentUserId = "", currentUserEmail = "";
 
-// ================== AUTH CHECK ==================
-onAuthStateChanged(auth, async (user) => {
-  if (!user) { window.location.href = "login.html"; return; }
-  currentUserId = user.uid;
-  currentUserEmail = user.email;
+let uid="", email="";
+
+onAuthStateChanged(auth,user=>{
+  if(!user){ location.href="login.html"; return; }
+  uid=user.uid;
+  email=user.email;
   loadPlans();
 });
 
-// ================== LOAD INVESTMENT PLANS ==================
-async function loadPlans() {
-  const plansRef = collection(db, "investmentPlans");
-  const snap = await getDocs(plansRef);
-  const container = document.getElementById("plansContainer");
-  container.innerHTML = "";
+async function loadPlans(){
+  const box=document.getElementById("plans");
+  const snap=await getDocs(collection(db,"investmentPlans"));
+  box.innerHTML="";
 
-  if (snap.empty) { container.innerHTML = "<p>No investment plans available.</p>"; return; }
+  snap.forEach(doc=>{
+    const p=doc.data();
+    if(p.status!=="active") return;
 
-  snap.forEach(planDoc => {
-    const plan = planDoc.data();
-    if (plan.status !== "active") return;
+    const card=document.createElement("div");
+    card.className="card";
 
-    const card = document.createElement("div");
-    card.className = "card";
+    card.innerHTML=`
+      <img src="${p.image}" onerror="this.style.display='none'">
+      <h3>${p.title}</h3>
+      <p>Duration: ${p.duration} days</p>
+      <p>Minimum: ₦${p.minAmount}</p>
 
-    card.innerHTML = `
-      <img src="${plan.image}" onerror="this.src='placeholder.png';">
-      <h3>${plan.title}</h3>
-      <p>Duration: ${plan.duration} days</p>
-      <p>Daily Return: ₦${plan.dailyReturn}</p>
-      <p>Total Return: ₦${plan.totalReturn}</p>
-      <p>Minimum Amount: ₦${plan.minAmount}</p>
-      <input class="amount-input" placeholder="Enter amount ≥ ${plan.minAmount}" type="number" min="${plan.minAmount}" />
-      <div class="quick-amounts">
-        <button>₦${plan.minAmount}</button>
-        <button>₦${plan.minAmount*2}</button>
-        <button>₦${plan.minAmount*5}</button>
+      <input class="amount" type="number" min="${p.minAmount}" placeholder="Enter amount ≥ ₦${p.minAmount}">
+      <div class="quick">
+        <button>₦${p.minAmount}</button>
+        <button>₦${p.minAmount*2}</button>
+        <button>₦${p.minAmount*5}</button>
       </div>
-      <button class="main-btn">Invest</button>
+      <button class="main">Invest</button>
     `;
 
-    const input = card.querySelector(".amount-input");
-
-    // Quick buttons
-    card.querySelectorAll(".quick-amounts button").forEach(btn => {
-      btn.onclick = () => { input.value = btn.textContent.replace("₦",""); }
+    const input=card.querySelector(".amount");
+    card.querySelectorAll(".quick button").forEach(b=>{
+      b.onclick=()=>input.value=b.textContent.replace("₦","");
     });
 
-    // Invest button
-    card.querySelector(".main-btn").onclick = () => {
-      const amt = Number(input.value);
-      if (!amt || amt < plan.minAmount) { alert(`Enter amount ≥ ₦${plan.minAmount}`); return; }
-      invest(plan, amt);
+    card.querySelector(".main").onclick=()=>{
+      const amt=Number(input.value);
+      if(!amt || amt<p.minAmount){ alert("Enter valid amount"); return; }
+      pay(p,amt);
     };
 
-    container.appendChild(card);
+    box.appendChild(card);
   });
 }
 
-// ================== LOADER ==================
-function showLoader(show) {
-  const loader = document.getElementById("loader");
-  loader.style.display = show ? "flex" : "none";
-  if (!show) document.getElementById("successTick").style.display = "none";
+function show(v){
+  document.getElementById("overlay").style.display=v?"flex":"none";
+  document.getElementById("tick").style.display="none";
 }
 
-// ================== INVEST FUNCTION ==================
-function invest(plan, amount) {
-  showLoader(true);
+function pay(plan,amount){
+  show(true);
+
   PaystackPop.setup({
     key: PAYSTACK_KEY,
-    email: currentUserEmail,
-    amount: amount * 100,  // kobo
-    currency: "NGN",
-    callback: async function(response) {
-      // Record investment in Firebase (manual mode)
-      const invRef = collection(db, "users", currentUserId, "investments");
-      await addDoc(invRef, {
-        planId: plan.title,
+    email,
+    amount: amount*100,
+    currency:"NGN",
+    callback: async res=>{
+      await addDoc(collection(db,"users",uid,"investments"),{
+        plan: plan.title,
         amount,
-        dailyReturn: plan.dailyReturn,
-        totalReturn: plan.totalReturn,
         duration: plan.duration,
         status: "active",
-        createdAt: serverTimestamp(),
-        paystackRef: response.reference
+        reference: res.reference,
+        createdAt: Date.now()
       });
-      document.getElementById("successTick").style.display = "block";
-      setTimeout(() => showLoader(false), 1500);
+
+      document.getElementById("tick").style.display="block";
+      setTimeout(()=>show(false),1500);
     },
-    onClose: function() {
-      showLoader(false);
-      alert("Payment cancelled");
-    }
+    onClose: ()=>show(false)
   }).openIframe();
 }
 </script>
+
 </body>
 </html>
