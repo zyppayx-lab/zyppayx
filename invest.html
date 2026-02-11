@@ -2,70 +2,76 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<title>Invest | Zyppayx</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zyppayxvest | Invest</title>
 
 <style>
-body{margin:0;font-family:Arial;background:#f6f8fb}
-header{background:#0a1f44;color:#fff;padding:20px;text-align:center;font-size:20px}
-.container{max-width:1100px;margin:auto;padding:15px}
-.section-title{margin:15px 0;font-size:18px;color:#0a1f44;font-weight:bold}
-.card{background:#fff;padding:18px;border-radius:14px;margin-bottom:20px;box-shadow:0 4px 12px rgba(0,0,0,.05)}
-.card img{width:100%;border-radius:12px;margin-bottom:10px}
-.card h3{margin:0;color:#0a1f44}
-.card p{color:#666;font-size:14px;margin:4px 0}
-.amount{width:100%;padding:12px;border-radius:10px;border:1px solid #ddd;margin-top:8px}
-.quick{display:flex;gap:8px;margin-top:8px}
-.quick button{flex:1;background:#00c896;color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer}
-.main{margin-top:12px;background:#0a1f44;color:#fff;border:none;width:100%;padding:14px;border-radius:12px;font-weight:bold;cursor:pointer}
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);align-items:center;justify-content:center;flex-direction:column;z-index:999}
-.loader{width:60px;height:60px;border:6px solid #eee;border-top:6px solid #00c896;border-radius:50%;animation:spin 1s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.tick{display:none;font-size:50px;color:#00c896;margin-top:10px}
-nav{position:fixed;bottom:0;width:100%;background:#fff;border-top:1px solid #ddd;display:flex;justify-content:space-around;padding:10px 0}
-nav a{text-decoration:none;color:#555;font-size:13px;text-align:center}
-nav a.active{color:#00c896;font-weight:bold}
-.lock{color:#e74c3c;font-weight:bold}
-.ready{color:#00c896;font-weight:bold}
-</style>
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:#f4f6fa;
+}
 
-<script src="https://js.paystack.co/v1/inline.js"></script>
+h2{
+  text-align:center;
+  margin:15px 0;
+}
+
+.plan{
+  background:#fff;
+  margin:15px;
+  padding:16px;
+  border-radius:16px;
+  box-shadow:0 6px 20px rgba(0,0,0,.08);
+}
+
+.plan img{
+  width:100%;
+  border-radius:12px;
+  margin-bottom:10px;
+}
+
+.plan h4{
+  margin:8px 0;
+}
+
+.plan p{
+  font-size:14px;
+  color:#555;
+}
+
+input{
+  width:100%;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #ccc;
+  margin-top:8px;
+  font-size:15px;
+}
+
+button{
+  width:100%;
+  padding:14px;
+  margin-top:12px;
+  border:none;
+  border-radius:12px;
+  background:#00c896;
+  color:#fff;
+  font-weight:bold;
+  font-size:15px;
+}
+</style>
 </head>
 
 <body>
 
-<header>Invest & Track Your Investments</header>
-
-<div class="container">
-  <div class="section-title">Available Investment Plans</div>
-  <div id="plans">
-    <p>Loading plans...</p>
-  </div>
-
-  <div class="section-title">My Investments</div>
-  <div id="investments">
-    <p>Loading your investments...</p>
-  </div>
-</div>
-
-<div class="overlay" id="overlay">
-  <div class="loader"></div>
-  <p style="color:#fff;margin-top:10px">Processing payment...</p>
-  <div class="tick" id="tick">✔</div>
-</div>
-
-<nav>
-  <a href="dashboard.html">Home</a>
-  <a href="invest.html" class="active">Invest</a>
-  <a href="refer.html">Refer</a>
-  <a href="alert.html">Alerts</a>
-  <a href="profile.html">Profile</a>
-</nav>
+<h2>Investment Plans</h2>
+<div id="plans"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, getDocs, addDoc, serverTimestamp, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
@@ -77,131 +83,58 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-const PAYSTACK_KEY = "pk_live_d52baea87b2c4e49b110aa5cda32260b33b0cb35";
-let uid="", email="";
-
 onAuthStateChanged(auth,user=>{
-  if(!user){ location.href="login.html"; return; }
-  uid=user.uid;
-  email=user.email;
+  if(!user){
+    window.location.href="login.html";
+    return;
+  }
   loadPlans();
-  loadInvestments();
 });
 
-// ========== LOAD PLANS ==========
 async function loadPlans(){
-  const box=document.getElementById("plans");
-  const snap=await getDocs(collection(db,"investmentPlans"));
+  const box = document.getElementById("plans");
   box.innerHTML="";
-  snap.forEach(doc=>{
-    const plan=doc.data();
-    if(plan.status!=="active") return;
 
-    const card=document.createElement("div");
-    card.className="card";
-    card.innerHTML=`
-      <img src="${plan.image}" onerror="this.style.display='none'">
-      <h3>${plan.title}</h3>
-      <p>Duration: ${plan.duration} days</p>
-      <p>Minimum: ₦${plan.minAmount}</p>
-      <input class="amount" type="number" min="${plan.minAmount}" placeholder="Enter amount ≥ ₦${plan.minAmount}">
-      <div class="quick">
-        <button>₦${plan.minAmount}</button>
-        <button>₦${plan.minAmount*2}</button>
-        <button>₦${plan.minAmount*5}</button>
-      </div>
-      <button class="main">Invest</button>
+  const snap = await getDocs(collection(db,"investmentPlans"));
+
+  snap.forEach(docSnap=>{
+    const p = docSnap.data();
+
+    const div = document.createElement("div");
+    div.className="plan";
+
+    div.innerHTML = `
+      <img src="${p.image || 'https://via.placeholder.com/300'}">
+      <h4>${p.name}</h4>
+      <p>Duration: ${p.duration} days</p>
+      <p>ROI: ${p.roi}%</p>
+
+      <input type="number" placeholder="Enter amount to invest" min="1">
+      <button>Invest</button>
     `;
-    const input=card.querySelector(".amount");
-    card.querySelectorAll(".quick button").forEach(b=>b.onclick=()=>input.value=b.textContent.replace("₦",""));
-    card.querySelector(".main").onclick=()=>pay(plan,Number(input.value));
-    box.appendChild(card);
+
+    const input = div.querySelector("input");
+    const btn = div.querySelector("button");
+
+    btn.onclick = ()=>{
+      const amount = Number(input.value);
+
+      if(!amount || amount <= 0){
+        alert("Enter a valid amount");
+        return;
+      }
+
+      localStorage.setItem("investAmount", amount);
+      localStorage.setItem("investPlan", p.name);
+      localStorage.setItem("investDuration", p.duration);
+
+      window.location.href = "manual-payment.html";
+    };
+
+    box.appendChild(div);
   });
 }
-
-// ========== LOAD USER INVESTMENTS ==========
-async function loadInvestments(){
-  const invBox=document.getElementById("investments");
-  invBox.innerHTML="";
-  const snap=await getDocs(collection(db,"users",uid,"investments"));
-  if(snap.empty){ invBox.innerHTML="<p>No investments yet.</p>"; return; }
-  snap.forEach(docSnap=>createInvestmentCard(docSnap));
-}
-
-// ========== CREATE INVESTMENT CARD ==========
-function createInvestmentCard(docSnap){
-  const inv=docSnap.data();
-  const maturity = inv.createdAt.toDate().getTime() + (inv.duration*86400000);
-  const card = document.createElement("div");
-  card.className="card";
-
-  const timer = document.createElement("p");
-  const btn = document.createElement("button");
-  btn.textContent="Withdraw";
-  btn.disabled=true;
-  btn.className="main";
-
-  function updateTimer(){
-    const now = Date.now();
-    const diff = maturity - now;
-    if(diff <=0){
-      timer.innerHTML="<span class='ready'>Investment matured</span>";
-      btn.disabled=false;
-      btn.onclick=()=>alert("Withdraw flow (manual or later)");
-      if(inv.status!=="matured") updateDoc(doc(db,"users",uid,"investments",docSnap.id),{status:"matured"});
-    }else{
-      const d=Math.floor(diff/86400000);
-      const h=Math.floor((diff%86400000)/3600000);
-      const m=Math.floor((diff%3600000)/60000);
-      const s=Math.floor((diff%60000)/1000);
-      timer.innerHTML=`<span class='lock'>Locked:</span> ${d}d ${h}h ${m}m ${s}s`;
-    }
-  }
-
-  setInterval(updateTimer,1000);
-  updateTimer();
-
-  card.innerHTML=`<h3>${inv.plan}</h3><p>Amount: ₦${inv.amount}</p>`;
-  card.appendChild(timer);
-  card.appendChild(btn);
-  document.getElementById("investments").appendChild(card);
-}
-
-// ========== PAYSTACK PAYMENT ==========
-function showOverlay(show){
-  document.getElementById("overlay").style.display = show?"flex":"none";
-  document.getElementById("tick").style.display = "none";
-}
-
-function pay(plan, amount){
-  if(!amount || amount<plan.minAmount){ alert(`Enter amount ≥ ₦${plan.minAmount}`); return; }
-  showOverlay(true);
-  setTimeout(()=>{
-    PaystackPop.setup({
-      key: PAYSTACK_KEY,
-      email,
-      amount: amount*100,
-      currency:"NGN",
-      callback: async res=>{
-        const docRef = await addDoc(collection(db,"users",uid,"investments"),{
-          plan: plan.title,
-          amount,
-          duration: plan.duration,
-          status: "active",
-          reference: res.reference,
-          createdAt: serverTimestamp()
-        });
-        document.getElementById("tick").style.display="block";
-
-        // Immediately show investment card
-        createInvestmentCard({id:docRef.id, data:()=>({plan: plan.title, amount, duration: plan.duration, status:"active", createdAt:new Date()})});
-
-        setTimeout(()=>showOverlay(false),1500);
-      },
-      onClose: ()=>showOverlay(false)
-    }).openIframe();
-  },50);
-}
 </script>
+
 </body>
 </html>
