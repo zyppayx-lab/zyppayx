@@ -1,111 +1,98 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Manual Payment</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-body{font-family:Arial;background:#f6f8fb}
-.card{background:#fff;margin:20px;padding:18px;border-radius:16px}
-.copy{color:#00c896;cursor:pointer}
-button{width:100%;padding:12px;border:none;border-radius:10px;background:#00c896;color:#fff;margin-top:10px}
+body { font-family: Arial; background:#f6f8fb; padding:20px;}
+.card { background:#fff; padding:20px; border-radius:12px; max-width:400px; margin:auto; box-shadow:0 4px 12px rgba(0,0,0,0.05);}
+.card p { margin:12px 0;}
+.copy-btn { background:#00c896; color:#fff; border:none; padding:6px 10px; border-radius:5px; cursor:pointer; margin-left:8px; font-size:12px;}
+.submit-btn { margin-top:15px; padding:12px; width:100%; border:none; border-radius:8px; background:#0a1f44; color:#fff; cursor:pointer; font-weight:bold;}
 </style>
 </head>
 <body>
 
 <div class="card">
-  <p><b>Bank Name</b><br>Paystack-Titan</p>
-  <p><b>Account Number</b><br>
-  <span id="acc">9740116304</span> <span class="copy" onclick="copy('acc')">Copy</span></p>
-  <p><b>Account Name</b><br>MOREINFOPAY/Zyppayx</p>
-  <p><b>Amount</b><br>
-  ₦<span id="amt"></span> <span class="copy" onclick="copy('amt')">Copy</span></p>
+  <h3>Manual Payment Details</h3>
+  <p>Bank Name: <span id="bankName"></span></p>
+  <p>Account Number: <span id="accountNumber"></span> <button class="copy-btn" id="copyAcc">Copy</button></p>
+  <p>Account Name: <span id="accountName"></span></p>
+  <p>Amount to Pay: ₦<span id="payAmount"></span> <button class="copy-btn" id="copyAmt">Copy</button></p>
+  <button class="submit-btn" id="submitBtn">I Have Paid</button>
 </div>
-
-<button id="submit">I Have Paid</button>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, addDoc, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, doc, addDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-/* Firebase */
-const app = initializeApp({
-  apiKey:"AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
-  authDomain:"zyppayx-69c54.firebaseapp.com",
-  projectId:"zyppayx-69c54"
-});
+const firebaseConfig = {
+  apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
+  authDomain: "zyppayx-69c54.firebaseapp.com",
+  projectId: "zyppayx-69c54"
+};
+
+const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-/* ======== Reset local storage if no new plan ===== */
-if(!localStorage.getItem("inv_plan")){
-  localStorage.removeItem("inv_plan");
-  localStorage.removeItem("inv_title");
-  localStorage.removeItem("inv_amount");
-  localStorage.removeItem("inv_roi");
-  localStorage.removeItem("inv_profit");
-  localStorage.removeItem("inv_total");
-  localStorage.removeItem("inv_duration");
-}
-
-/* ======== Display amount ===== */
-const amtSpan = document.getElementById("amt");
-amtSpan.innerText = localStorage.getItem("inv_amount") || "0";
-
-/* ======== Copy to clipboard ===== */
-window.copy = id=>{
-  navigator.clipboard.writeText(
-    document.getElementById(id).innerText
-  ).then(()=> alert("Copied!"));
+// General account info
+const generalAccount = {
+  bankName: "Paystack-Titan",
+  accountNumber: "9740116304",
+  accountName: "MOREINFOPAY/Zyppayx"
 };
 
-/* ======== Handle submission ===== */
-onAuthStateChanged(auth, user=>{
-  if(!user) return;
+// Get URL params
+const params = new URLSearchParams(window.location.search);
+const planId = params.get("planId");
+const amount = params.get("amount");
 
-  document.getElementById("submit").onclick = async ()=>{
-    const planId = localStorage.getItem("inv_plan");
-    const title = localStorage.getItem("inv_title");
-    const amount = Number(localStorage.getItem("inv_amount"));
-    const roiPercent = Number(localStorage.getItem("inv_roi"));
-    const profit = Number(localStorage.getItem("inv_profit"));
-    const totalReturn = Number(localStorage.getItem("inv_total"));
-    const duration = Number(localStorage.getItem("inv_duration"));
+document.getElementById("bankName").textContent = generalAccount.bankName;
+document.getElementById("accountNumber").textContent = generalAccount.accountNumber;
+document.getElementById("accountName").textContent = generalAccount.accountName;
+document.getElementById("payAmount").textContent = amount;
 
-    if(!planId || !amount){
-      alert("Something went wrong. Please go back and select a plan.");
-      return;
-    }
+document.getElementById("copyAcc").onclick = () => navigator.clipboard.writeText(generalAccount.accountNumber);
+document.getElementById("copyAmt").onclick = () => navigator.clipboard.writeText(amount);
 
-    await addDoc(collection(db,"users",user.uid,"investments"),{
-      planId,
-      planTitle: title,
-      amount,
-      roiPercent,
-      profit,
-      totalReturn,
-      duration,
+onAuthStateChanged(auth, async user => {
+  if (!user) { window.location.href = "login.html"; return; }
+
+  // Fetch plan details (duration) from investmentPlans collection
+  const planRef = doc(db, "investmentPlans", planId);
+  const planSnap = await getDoc(planRef);
+  if (!planSnap.exists()) {
+    alert("Investment plan not found!");
+    return;
+  }
+  const planData = planSnap.data();
+  const durationDays = planData.duration || 0;
+
+  document.getElementById("submitBtn").onclick = async () => {
+    const startDate = Date.now();
+    const endDate = startDate + durationDays * 24 * 60 * 60 * 1000;
+
+    const invRef = collection(db, "users", user.uid, "investments");
+    await addDoc(invRef, {
+      planId: planId,
+      amount: Number(amount),
       status: "pending",
-      createdAt: Date.now(),
-      paymentMethod: "bank-transfer"
+      duration: durationDays,
+      startDate,
+      endDate,
+      createdAt: serverTimestamp(),
+      userId: user.uid,
+      userEmail: user.email
     });
 
-    alert("Investment submitted for approval!");
-
-    /* ======== Reset localStorage for next plan ===== */
-    localStorage.removeItem("inv_plan");
-    localStorage.removeItem("inv_title");
-    localStorage.removeItem("inv_amount");
-    localStorage.removeItem("inv_roi");
-    localStorage.removeItem("inv_profit");
-    localStorage.removeItem("inv_total");
-    localStorage.removeItem("inv_duration");
-
-    /* ======== Redirect back to invest page ===== */
-    window.location.href="invest.html";
+    alert("Investment recorded as pending! Please complete payment to the account shown.");
+    window.location.href = "invest.html"; // redirect back
   };
 });
 </script>
+
 </body>
 </html>
