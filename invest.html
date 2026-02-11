@@ -51,7 +51,7 @@ nav a.active { color:#00c896; font-weight:bold;}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, getDocs, addDoc, doc, getDoc, updateDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, getDocs, addDoc, doc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
@@ -69,6 +69,7 @@ const db = getFirestore(app);
 const PAYSTACK_KEY = "pk_live_d52baea87b2c4e49b110aa5cda32260b33b0cb35";
 let currentUserId = "", currentUserEmail = "";
 
+// ================== AUTH CHECK ==================
 onAuthStateChanged(auth, async (user) => {
   if (!user) { window.location.href = "login.html"; return; }
   currentUserId = user.uid;
@@ -76,6 +77,7 @@ onAuthStateChanged(auth, async (user) => {
   loadPlans();
 });
 
+// ================== LOAD INVESTMENT PLANS ==================
 async function loadPlans() {
   const plansRef = collection(db, "investmentPlans");
   const snap = await getDocs(plansRef);
@@ -108,10 +110,13 @@ async function loadPlans() {
     `;
 
     const input = card.querySelector(".amount-input");
+
+    // Quick buttons
     card.querySelectorAll(".quick-amounts button").forEach(btn => {
       btn.onclick = () => { input.value = btn.textContent.replace("₦",""); }
     });
 
+    // Invest button
     card.querySelector(".main-btn").onclick = () => {
       const amt = Number(input.value);
       if (!amt || amt < plan.minAmount) { alert(`Enter amount ≥ ₦${plan.minAmount}`); return; }
@@ -122,21 +127,23 @@ async function loadPlans() {
   });
 }
 
+// ================== LOADER ==================
 function showLoader(show) {
   const loader = document.getElementById("loader");
   loader.style.display = show ? "flex" : "none";
   if (!show) document.getElementById("successTick").style.display = "none";
 }
 
+// ================== INVEST FUNCTION ==================
 function invest(plan, amount) {
   showLoader(true);
   PaystackPop.setup({
     key: PAYSTACK_KEY,
     email: currentUserEmail,
-    amount: amount * 100,
+    amount: amount * 100,  // kobo
     currency: "NGN",
     callback: async function(response) {
-      // Payment successful, record in Firebase
+      // Record investment in Firebase (manual mode)
       const invRef = collection(db, "users", currentUserId, "investments");
       await addDoc(invRef, {
         planId: plan.title,
