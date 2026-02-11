@@ -4,99 +4,127 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Manual Payment</title>
+
 <style>
-body { font-family: Arial; background:#f6f8fb; padding:20px;}
-.card { background:#fff; padding:20px; border-radius:12px; max-width:400px; margin:auto; box-shadow:0 4px 12px rgba(0,0,0,0.05);}
-.card p { margin:12px 0;}
-.copy-btn { background:#00c896; color:#fff; border:none; padding:6px 10px; border-radius:5px; cursor:pointer; margin-left:8px; font-size:12px;}
-.submit-btn { margin-top:15px; padding:12px; width:100%; border:none; border-radius:8px; background:#0a1f44; color:#fff; cursor:pointer; font-weight:bold;}
+body{font-family:Arial;background:#f6f8fb;padding:20px}
+.card{
+  background:#fff;
+  padding:20px;
+  border-radius:14px;
+  max-width:420px;
+  margin:auto;
+  box-shadow:0 4px 12px rgba(0,0,0,.08)
+}
+.card p{margin:10px 0}
+.copy-btn{
+  margin-left:8px;
+  background:#00c896;
+  color:#fff;
+  border:none;
+  padding:4px 8px;
+  border-radius:6px;
+  font-size:12px;
+  cursor:pointer
+}
+.submit-btn{
+  margin-top:18px;
+  width:100%;
+  padding:12px;
+  border:none;
+  border-radius:10px;
+  background:#0a1f44;
+  color:#fff;
+  font-weight:bold;
+  cursor:pointer
+}
 </style>
 </head>
 <body>
 
 <div class="card">
-  <h3>Manual Payment Details</h3>
-  <p>Bank Name: <span id="bankName"></span></p>
-  <p>Account Number: <span id="accountNumber"></span> <button class="copy-btn" id="copyAcc">Copy</button></p>
-  <p>Account Name: <span id="accountName"></span></p>
-  <p>Amount to Pay: ₦<span id="payAmount"></span> <button class="copy-btn" id="copyAmt">Copy</button></p>
-  <button class="submit-btn" id="submitBtn">I Have Paid</button>
+  <h3 id="planTitle">Loading...</h3>
+
+  <p>ROI: <b><span id="roi"></span>%</b></p>
+  <p>Duration: <b><span id="duration"></span> days</b></p>
+
+  <hr>
+
+  <p>Bank Name:<br><b>Paystack-Titan</b></p>
+  <p>
+    Account Number:<br>
+    <b id="accNo">9740116304</b>
+    <button class="copy-btn" onclick="copy('9740116304')">Copy</button>
+  </p>
+  <p>Account Name:<br><b>MOREINFOPAY / Zyppayx</b></p>
+  <p>
+    Amount to Pay:<br>
+    ₦<b id="amountText"></b>
+    <button class="copy-btn" onclick="copy(amount)">Copy</button>
+  </p>
+
+  <button class="submit-btn" id="paidBtn">I Have Paid</button>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  addDoc,
+  collection,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// Firebase config
-const firebaseConfig = {
+const app = initializeApp({
   apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
   authDomain: "zyppayx-69c54.firebaseapp.com",
   projectId: "zyppayx-69c54"
-};
-const app = initializeApp(firebaseConfig);
+});
+
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// General account details
-const generalAccount = {
-  bankName: "Paystack-Titan",
-  accountNumber: "9740116304",
-  accountName: "MOREINFOPAY/Zyppayx"
-};
-
-// Get URL params
-const params = new URLSearchParams(window.location.search);
+const params = new URLSearchParams(location.search);
 const planId = params.get("planId");
-const amount = params.get("amount");
+const amount = Number(params.get("amount"));
 
-// Display account info
-document.getElementById("bankName").textContent = generalAccount.bankName;
-document.getElementById("accountNumber").textContent = generalAccount.accountNumber;
-document.getElementById("accountName").textContent = generalAccount.accountName;
-document.getElementById("payAmount").textContent = amount;
+document.getElementById("amountText").textContent = amount;
 
-// Copy buttons
-document.getElementById("copyAcc").onclick = () => navigator.clipboard.writeText(generalAccount.accountNumber);
-document.getElementById("copyAmt").onclick = () => navigator.clipboard.writeText(amount);
+async function loadPlan() {
+  const snap = await getDoc(doc(db, "investmentPlans", planId));
+  if (!snap.exists()) {
+    alert("Invalid investment plan");
+    return;
+  }
+  const p = snap.data();
+  document.getElementById("planTitle").textContent = p.title;
+  document.getElementById("roi").textContent = p.roiPercent;
+  document.getElementById("duration").textContent = p.duration;
+}
 
-// Handle manual payment submission
-onAuthStateChanged(auth, async user => {
-  if (!user) { window.location.href = "login.html"; return; }
+loadPlan();
 
-  document.getElementById("submitBtn").onclick = async () => {
-    try {
-      // Fetch plan details
-      const planRef = doc(db, "investmentPlans", planId);
-      const planSnap = await getDoc(planRef);
-      if (!planSnap.exists()) { alert("Plan not found"); return; }
-      const plan = planSnap.data();
+onAuthStateChanged(auth, user => {
+  if (!user) location.href = "login.html";
 
-      const startDate = Date.now();
-      const endDate = startDate + (plan.duration * 24 * 60 * 60 * 1000); // convert days to ms
+  document.getElementById("paidBtn").onclick = async () => {
+    await addDoc(collection(db, "investments"), {
+      userId: user.uid,
+      userEmail: user.email,
+      planId,
+      amount,
+      status: "pending",
+      createdAt: serverTimestamp()
+    });
 
-      // Add to top-level investments collection
-      await addDoc(collection(db, "investments"), {
-        planId: planId,
-        planName: plan.title || "Plan",
-        userId: user.uid,
-        userEmail: user.email,
-        amount: Number(amount),
-        status: "pending",        // pending by default
-        duration: plan.duration,
-        startDate: startDate,
-        endDate: endDate,
-        createdAt: serverTimestamp()
-      });
-
-      alert("Investment recorded as pending! Admin will approve it.");
-      window.location.href = "invest.html"; // redirect back
-    } catch (err) {
-      alert("Error recording investment: " + err.message);
-    }
+    alert("Payment submitted. Awaiting admin approval.");
+    location.href = "invest.html";
   };
 });
-</script>
 
+window.copy = t => navigator.clipboard.writeText(t);
+</script>
 </body>
 </html>
