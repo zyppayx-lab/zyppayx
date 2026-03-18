@@ -1,265 +1,224 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Zyppayxvest | Login</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Zyppayxvest | Login</title>
 
-  <style>
-    body {
-      background: #f6f8fb;
-      font-family: Arial, Helvetica, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-    }
+<style>
+body {
+  background: #f6f8fb;
+  font-family: Arial;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:100vh;
+}
 
-    .auth-box {
-      background: #fff;
-      width: 100%;
-      max-width: 380px;
-      padding: 25px;
-      border-radius: 8px;
-      box-shadow: 0 6px 15px rgba(0,0,0,0.08);
-    }
+.auth-box {
+  background:#fff;
+  width:100%;
+  max-width:380px;
+  padding:25px;
+  border-radius:8px;
+  box-shadow:0 6px 15px rgba(0,0,0,0.08);
+}
 
-    h2 {
-      text-align: center;
-      color: #0a1f44;
-      margin-bottom: 20px;
-    }
+h2 { text-align:center; color:#0a1f44; }
 
-    input {
-      width: 100%;
-      padding: 12px;
-      margin-bottom: 15px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      font-size: 14px;
-    }
+input {
+  width:100%;
+  padding:12px;
+  margin-bottom:15px;
+  border:1px solid #ccc;
+  border-radius:5px;
+}
 
-    button {
-      width: 100%;
-      padding: 12px;
-      background: #00c896;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      font-size: 15px;
-      cursor: pointer;
-    }
+button {
+  width:100%;
+  padding:12px;
+  background:#00c896;
+  color:#fff;
+  border:none;
+  border-radius:5px;
+  cursor:pointer;
+}
 
-    button:hover {
-      opacity: 0.9;
-    }
+.google-btn { background:#4285f4; margin-top:10px; }
 
-    .google-btn {
-      background: #4285f4;
-      margin-top: 10px;
-    }
-
-    .toggle-text {
-      text-align: center;
-      margin-top: 15px;
-      font-size: 14px;
-    }
-
-    .toggle-text span {
-      color: #00c896;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .hidden {
-      display: none;
-    }
-  </style>
+.hidden { display:none; }
+</style>
 </head>
+
 <body>
 
-  <div class="auth-box">
+<div class="auth-box">
 
-    <h2 id="formTitle">Login</h2>
+<h2 id="formTitle">Login</h2>
 
-    <!-- Name field for signup -->
-    <input type="text" id="name" placeholder="Full Name" class="hidden" />
+<!-- NAME (NOW FIRST) -->
+<input type="text" id="name" placeholder="Full Name" class="hidden"/>
 
-    <!-- Phone field for signup -->
-    <input type="tel" id="phone" placeholder="Phone Number" class="hidden" />
+<input type="tel" id="phone" placeholder="Phone Number" class="hidden"/>
+<input type="email" id="email" placeholder="Email"/>
+<input type="password" id="password" placeholder="Password"/>
+<input type="text" id="referral" placeholder="Referral Code (optional)" class="hidden"/>
 
-    <!-- Email -->
-    <input type="email" id="email" placeholder="Email address" />
+<button id="submitBtn">Login</button>
+<button class="google-btn" id="googleBtn">Continue with Google</button>
 
-    <!-- Password -->
-    <input type="password" id="password" placeholder="Password" />
+<p style="text-align:center;margin-top:10px;">
+<span id="toggleText">Don't have an account? Sign up</span>
+</p>
 
-    <!-- Referral code (optional) -->
-    <input type="text" id="referral" placeholder="Referral Code (optional)" class="hidden" />
+</div>
 
-    <!-- Submit button -->
-    <button id="submitBtn">Login</button>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-    <!-- Google sign-in -->
-    <button class="google-btn" id="googleBtn">Continue with Google</button>
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  increment
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    <!-- Toggle text -->
-    <div class="toggle-text">
-      <span id="toggleText">Don't have an account? Sign up</span>
-    </div>
+const firebaseConfig = {
+  apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
+  authDomain: "zyppayx-69c54.firebaseapp.com",
+  projectId: "zyppayx-69c54",
+  storageBucket: "zyppayx-69c54.appspot.com",
+  messagingSenderId: "439535581166",
+  appId: "1:439535581166:web:994d1c9f75bd1294ef00ff"
+};
 
-  </div>
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
 
-  <!-- Firebase -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import {
-      getAuth,
-      signInWithEmailAndPassword,
-      createUserWithEmailAndPassword,
-      GoogleAuthProvider,
-      signInWithPopup
-    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+let isLogin = true;
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
-      authDomain: "zyppayx-69c54.firebaseapp.com",
-      projectId: "zyppayx-69c54",
-      storageBucket: "zyppayx-69c54.firebasestorage.app",
-      messagingSenderId: "439535581166",
-      appId: "1:439535581166:web:994d1c9f75bd1294ef00ff"
-    };
+const formTitle = document.getElementById("formTitle");
+const submitBtn = document.getElementById("submitBtn");
+const toggleText = document.getElementById("toggleText");
+const nameInput = document.getElementById("name");
+const phoneInput = document.getElementById("phone");
+const referralInput = document.getElementById("referral");
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const provider = new GoogleAuthProvider();
+// TOGGLE
+toggleText.onclick = () => {
+  isLogin = !isLogin;
 
-    let isLogin = true;
+  if (isLogin) {
+    formTitle.textContent = "Login";
+    submitBtn.textContent = "Login";
+    toggleText.textContent = "Don't have an account? Sign up";
 
-    const formTitle = document.getElementById("formTitle");
-    const submitBtn = document.getElementById("submitBtn");
-    const toggleText = document.getElementById("toggleText");
-    const nameInput = document.getElementById("name");
-    const phoneInput = document.getElementById("phone");
-    const referralInput = document.getElementById("referral");
+    nameInput.classList.add("hidden");
+    phoneInput.classList.add("hidden");
+    referralInput.classList.add("hidden");
+  } else {
+    formTitle.textContent = "Sign Up";
+    submitBtn.textContent = "Create Account";
+    toggleText.textContent = "Already have an account? Login";
 
-    toggleText.onclick = () => {
-      isLogin = !isLogin;
+    nameInput.classList.remove("hidden");
+    phoneInput.classList.remove("hidden");
+    referralInput.classList.remove("hidden");
+  }
+};
 
-      if (isLogin) {
-        formTitle.textContent = "Login";
-        submitBtn.textContent = "Login";
-        toggleText.textContent = "Don't have an account? Sign up";
-        nameInput.classList.add("hidden");
-        phoneInput.classList.add("hidden");
-        referralInput.classList.add("hidden");
-      } else {
-        formTitle.textContent = "Sign Up";
-        submitBtn.textContent = "Create Account";
-        toggleText.textContent = "Already have an account? Login";
-        nameInput.classList.remove("hidden");
-        phoneInput.classList.remove("hidden");
-        referralInput.classList.remove("hidden");
-      }
-    };
+// SUBMIT
+submitBtn.onclick = async () => {
+  const email = email.value;
+  const password = password.value;
 
-    submitBtn.onclick = async () => {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
+  if (!email || !password) {
+    alert("Fill all fields");
+    return;
+  }
 
-      if (!email || !password) {
-        alert("Please fill all fields");
+  try {
+    if (isLogin) {
+      await signInWithEmailAndPassword(auth, email, password);
+      window.location.href = "dashboard.html";
+    } else {
+      const name = nameInput.value;
+      const phone = phoneInput.value;
+      const refCode = referralInput.value;
+
+      if (!name || !phone) {
+        alert("Enter name & phone");
         return;
       }
 
-      try {
-        if (isLogin) {
-          await signInWithEmailAndPassword(auth, email, password);
-        } else {
-          const name = nameInput.value;
-          const phone = phoneInput.value;
-          const refCode = referralInput.value;
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = cred.user.uid;
+      const myRefCode = uid.slice(0,6).toUpperCase();
 
-          if (!name || !phone) {
-            alert("Please enter your name and phone number");
-            return;
-          }
+      await setDoc(doc(db, "users", uid), {
+        fullName: name,
+        username: name.toLowerCase().replace(/\s/g,''),
+        phone,
+        email,
+        balance: 0,
+        referralCode: myRefCode,
+        createdAt: Date.now()
+      });
 
-          const cred = await createUserWithEmailAndPassword(auth, email, password);
-          const uid = cred.user.uid;
-          const myRefCode = uid.slice(0, 6).toUpperCase();
+      await setDoc(doc(db, "referrals", myRefCode), { uid });
 
-          await setDoc(doc(db, "users", uid), {
-            name,
-            email,
-            phone,
-            balance: 0,
-            totalEarnings: 0,
-            referrals: 0,
-            referralBonus: 0,
-            activeInvestment: 0,
-            referralCode: myRefCode,
-            createdAt: Date.now()
-          });
+      // Redirect to create PIN 🔥
+      window.location.href = "createpin.html";
+    }
 
-          // Referral bonus
-          if (refCode) {
-            const refSnap = await getDoc(doc(db, "referrals", refCode));
-            if (refSnap.exists()) {
-              const refUid = refSnap.data().uid;
-              await updateDoc(doc(db, "users", refUid), {
-                referrals: increment(1),
-                referralBonus: increment(100),
-                balance: increment(100)
-              });
-            }
-          }
+  } catch(err) {
+    alert(err.message);
+  }
+};
 
-          await setDoc(doc(db, "referrals", myRefCode), { uid });
-        }
+// GOOGLE LOGIN
+document.getElementById("googleBtn").onclick = async () => {
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
 
-        window.location.href = "dashboard.html";
-      } catch (err) {
-        alert(err.message);
-      }
-    };
+    const userRef = doc(db, "users", user.uid);
+    const snap = await getDoc(userRef);
 
-    // Google Sign-In
-    document.getElementById("googleBtn").onclick = async () => {
-      try {
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
+    if (!snap.exists()) {
+      const refCode = user.uid.slice(0,6).toUpperCase();
 
-        // Check if user exists in Firestore
-        const userRef = doc(db, "users", user.uid);
-        const snap = await getDoc(userRef);
-        if (!snap.exists()) {
-          // Create Firestore profile
-          const myRefCode = user.uid.slice(0,6).toUpperCase();
-          await setDoc(userRef, {
-            name: user.displayName || "No Name",
-            email: user.email,
-            phone: user.phoneNumber || "",
-            balance: 0,
-            totalEarnings: 0,
-            referrals: 0,
-            referralBonus: 0,
-            activeInvestment: 0,
-            referralCode: myRefCode,
-            createdAt: Date.now()
-          });
+      await setDoc(userRef, {
+        fullName: user.displayName,
+        username: user.displayName?.toLowerCase().replace(/\s/g,''),
+        email: user.email,
+        phone: "",
+        balance: 0,
+        referralCode: refCode
+      });
 
-          await setDoc(doc(db, "referrals", myRefCode), { uid: user.uid });
-        }
+      await setDoc(doc(db, "referrals", refCode), { uid: user.uid });
+    }
 
-        window.location.href = "dashboard.html";
-      } catch(err) {
-        alert(err.message);
-      }
-    };
-  </script>
+    // Redirect to PIN setup
+    window.location.href = "createpin.html";
+
+  } catch(err){
+    alert(err.message);
+  }
+};
+</script>
 
 </body>
 </html>
