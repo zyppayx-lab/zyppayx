@@ -9,14 +9,7 @@
 body { margin:0; font-family: Arial; background:#f6f8fb;}
 header { background:#0a1f44;color:#fff;padding:20px;text-align:center;}
 .container { max-width:600px;margin:auto;padding:15px;}
-
-.card {
-  background:#fff;
-  padding:18px;
-  border-radius:12px;
-  margin-bottom:20px;
-}
-
+.card { background:#fff;padding:18px;border-radius:12px;margin-bottom:20px;}
 input, select {
   width:100%;
   padding:10px;
@@ -24,7 +17,6 @@ input, select {
   border-radius:8px;
   border:1px solid #ccc;
 }
-
 button {
   margin-top:15px;
   padding:12px;
@@ -35,7 +27,6 @@ button {
   width:100%;
   font-weight:bold;
 }
-
 .success { color:green; }
 .error { color:red; }
 </style>
@@ -83,11 +74,10 @@ button {
 <input type="text" id="accountNumber" placeholder="Account Number">
 <input type="password" id="pin" maxlength="4" placeholder="Enter 4-digit PIN">
 
-<button id="withdrawBtn">Request Withdrawal</button>
+<button id="withdrawBtn" disabled>Request Withdrawal</button>
 <p id="message"></p>
 
 </div>
-
 </div>
 
 <script type="module">
@@ -97,6 +87,7 @@ import {
   getFirestore,
   doc,
   getDoc,
+  updateDoc,
   collection,
   addDoc,
   serverTimestamp,
@@ -122,8 +113,14 @@ let currentUserId = "";
 let currentBalance = 0;
 let savedPinHash = "";
 let userTier = 1;
+let failedAttempts = 0;
+let lockUntil = 0;
 
 const feePercent = 0.05;
+
+const pinInput = document.getElementById("pin");
+const withdrawBtn = document.getElementById("withdrawBtn");
+const msg = document.getElementById("message");
 
 // HASH PIN
 async function hashPin(pin) {
@@ -135,7 +132,12 @@ async function hashPin(pin) {
     .join("");
 }
 
-// LOAD USER
+// ENABLE BUTTON WHEN PIN IS 4 DIGITS
+pinInput.addEventListener("input", () => {
+  withdrawBtn.disabled = pinInput.value.length !== 4;
+});
+
+// LOAD USER DATA
 onAuthStateChanged(auth, async (user) => {
   if (!user) return location.href = "login.html";
 
@@ -147,12 +149,14 @@ onAuthStateChanged(auth, async (user) => {
     currentBalance = data.balance || 0;
     savedPinHash = data.pinHash || "";
     userTier = data.tier || 1;
+    failedAttempts = data.failedAttempts || 0;
+    lockUntil = data.lockUntil || 0;
 
     document.getElementById("balance").textContent = currentBalance;
   }
 });
 
-// LIVE FEE
+// LIVE FEE DISPLAY
 document.getElementById("amount").addEventListener("input", () => {
   const amt = parseInt(document.getElementById("amount").value) || 0;
 
@@ -167,8 +171,53 @@ document.getElementById("amount").addEventListener("input", () => {
   }
 });
 
-// WITHDRAW
-document.getElementById("withdrawBtn").onclick = async () => {
+// WITHDRAW FUNCTION
+withdrawBtn.onclick = async () => {
+
+  const now = Date.now();
+
+  // 🔐 CHECK LOCK (SERVER SIDE)
+  if (now < lockUntil) {
+    const remaining = Math.ceil((lockUntil - now) / 1000);
+    msg.textContent = `Locked. Try again in ${remaining}s`;
+    msg.className = "error";
+    return;
+  }
+
+  const pin = pinInput.value;
+
+  if (!pin || pin.length !== 4) {
+    msg.textContent = "Enter PIN first";
+    msg.className = "error";
+    return;
+  }
+
+  const hashedInput = await hashPin(pin);
+
+  // ❌ WRONG PIN
+  if (hashedInput !== savedPinHash) {
+    failedAttempts++;
+
+    let updateData = { failedAttempts };
+
+    if (failedAttempts >= 3) {
+      updateData.lockUntil = now + 30000;
+      msg.textContent = "Too many attempts. Locked 30s";
+    } else {
+      msg.textContent = `Wrong PIN (${failedAttempts}/3)`;
+    }
+
+    msg.className = "error";
+    await updateDoc(doc(db, "users", currentUserId), updateData);
+    return;
+  }
+
+  // ✅ RESET SECURITY
+  await updateDoc(doc(db, "users", currentUserId), {
+    failedAttempts: 0,
+    lockUntil: 0
+  });
+
   const rawAmount = parseInt(document.getElementById("amount").value);
   const fee = Math.floor(rawAmount * feePercent);
   const amountToReceive = rawAmount - fee;
@@ -176,14 +225,9 @@ document.getElementById("withdrawBtn").onclick = async () => {
   const bankName = document.getElementById("bankName").value;
   const accountName = document.getElementById("accountName").value.trim();
   const accountNumber = document.getElementById("accountNumber").value.trim();
-  const pin = document.getElementById("pin").value;
-
-  const msg = document.getElementById("message");
-  msg.textContent = "";
-  msg.className = "";
 
   if (!rawAmount || rawAmount < 1000) {
-    msg.textContent = "Minimum withdrawal is ₦1000";
+    msg.textContent = "Minimum ₦1000";
     msg.className = "error";
     return;
   }
@@ -199,7 +243,7 @@ document.getElementById("withdrawBtn").onclick = async () => {
   if (userTier == 3) maxLimit = Infinity;
 
   if (rawAmount > maxLimit) {
-    msg.textContent = `Your tier limit is ₦${maxLimit}`;
+    msg.textContent = `Limit ₦${maxLimit}`;
     msg.className = "error";
     return;
   }
@@ -212,14 +256,7 @@ document.getElementById("withdrawBtn").onclick = async () => {
 
   const pendingSnap = await getDocs(q);
   if (!pendingSnap.empty) {
-    msg.textContent = "You already have a pending withdrawal";
-    msg.className = "error";
-    return;
-  }
-
-  const hashedInput = await hashPin(pin);
-  if (hashedInput !== savedPinHash) {
-    msg.textContent = "Incorrect PIN";
+    msg.textContent = "Pending withdrawal exists";
     msg.className = "error";
     return;
   }
@@ -228,8 +265,8 @@ document.getElementById("withdrawBtn").onclick = async () => {
     await addDoc(collection(db, "withdrawals"), {
       userId: currentUserId,
       amount: rawAmount,
-      fee: fee,
-      amountToReceive: amountToReceive,
+      fee,
+      amountToReceive,
       bankName,
       accountName,
       accountNumber,
@@ -240,6 +277,13 @@ document.getElementById("withdrawBtn").onclick = async () => {
     msg.textContent = "Withdrawal submitted";
     msg.className = "success";
 
+    // CLEAR FORM
+    document.getElementById("amount").value = "";
+    document.getElementById("accountName").value = "";
+    document.getElementById("accountNumber").value = "";
+    pinInput.value = "";
+    withdrawBtn.disabled = true;
+
   } catch (err) {
     msg.textContent = "Error occurred";
     msg.className = "error";
@@ -248,4 +292,4 @@ document.getElementById("withdrawBtn").onclick = async () => {
 </script>
 
 </body>
-</html>
+  </html>
