@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Change PIN</title>
+
+<style>
+body { font-family: Arial; background:#f6f8fb; }
+.container { max-width:400px;margin:auto;padding:20px;}
+.card { background:#fff;padding:20px;border-radius:12px;}
+input { width:100%;padding:10px;margin-top:10px;border-radius:8px;border:1px solid #ccc;}
+button { width:100%;padding:12px;margin-top:15px;background:#00c896;color:#fff;border:none;border-radius:8px;}
+.success { color:green; }
+.error { color:red; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<div class="card">
+<h3>Change PIN</h3>
+
+<input type="password" id="oldPin" placeholder="Old PIN" maxlength="4">
+<input type="password" id="newPin" placeholder="New PIN" maxlength="4">
+<input type="password" id="confirmPin" placeholder="Confirm New PIN" maxlength="4">
+
+<button id="changeBtn">Change PIN</button>
+<p id="msg"></p>
+
+</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
+  authDomain: "zyppayx-69c54.firebaseapp.com",
+  projectId: "zyppayx-69c54",
+  storageBucket: "zyppayx-69c54.appspot.com",
+  messagingSenderId: "439535581166",
+  appId: "1:439535581166:web:994d1c9f75bd1294ef00ff"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let currentUserId = "";
+let savedPinHash = "";
+
+async function hashPin(pin) {
+  const enc = new TextEncoder().encode(pin);
+  const hash = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) return location.href="login.html";
+
+  currentUserId = user.uid;
+
+  const snap = await getDoc(doc(db,"users",user.uid));
+  if (snap.exists()) {
+    savedPinHash = snap.data().pinHash || "";
+  }
+});
+
+document.getElementById("changeBtn").onclick = async () => {
+  const oldPin = document.getElementById("oldPin").value;
+  const newPin = document.getElementById("newPin").value;
+  const confirmPin = document.getElementById("confirmPin").value;
+  const msg = document.getElementById("msg");
+
+  msg.textContent = "";
+
+  if (newPin.length !== 4) {
+    msg.textContent = "PIN must be 4 digits";
+    msg.className = "error";
+    return;
+  }
+
+  if (newPin !== confirmPin) {
+    msg.textContent = "PINs do not match";
+    msg.className = "error";
+    return;
+  }
+
+  const oldHash = await hashPin(oldPin);
+
+  if (oldHash !== savedPinHash) {
+    msg.textContent = "Old PIN incorrect";
+    msg.className = "error";
+    return;
+  }
+
+  const newHash = await hashPin(newPin);
+
+  await updateDoc(doc(db,"users",currentUserId), {
+    pinHash: newHash,
+    failedAttempts: 0,
+    lockUntil: 0
+  });
+
+  msg.textContent = "PIN updated successfully";
+  msg.className = "success";
+
+  document.getElementById("oldPin").value="";
+  document.getElementById("newPin").value="";
+  document.getElementById("confirmPin").value="";
+};
+</script>
+
+</body>
+</html>
