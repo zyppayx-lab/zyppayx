@@ -3,86 +3,108 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zyppayxvest | Profile</title>
+<title>Profile</title>
+
 <style>
-body { margin:0; font-family: Arial, Helvetica, sans-serif; background:#f6f8fb;}
-header { background:#0a1f44; color:#fff; padding:20px; text-align:center; font-size:20px;}
-.container { max-width:600px; margin:30px auto; background:#fff; padding:20px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05);}
+body { margin:0; font-family: Arial; background:#f6f8fb;}
+header { background:#0a1f44; color:#fff; padding:20px; text-align:center;}
+
+.container {
+  max-width:600px; margin:30px auto;
+  background:#fff; padding:20px;
+  border-radius:12px;
+}
+
 .item { margin-bottom:15px; }
-.item h3 { margin:0 0 5px 0; font-size:14px; color:#0a1f44; }
-.item p { margin:0; font-size:16px; color:#555; word-break:break-all; }
-nav { position:fixed; bottom:0; width:100%; background:#fff; border-top:1px solid #ddd; display:flex; justify-content:space-around; padding:10px 0; }
-nav a { text-decoration:none; color:#555; font-size:13px; text-align:center; }
-nav a.active { color:#00c896; font-weight:bold; }
+.item h3 { margin:0 0 5px; font-size:14px; }
+.item p { margin:0; font-size:16px; }
+
+.btn {
+  width:100%; padding:12px; margin-top:10px;
+  border:none; border-radius:8px; cursor:pointer;
+}
+.btn-primary { background:#00c896; color:#fff; }
+.btn-danger { background:red; color:#fff; }
 </style>
 </head>
+
 <body>
 
 <header>Your Profile</header>
 
 <div class="container">
-  <div class="item">
-    <h3>Email</h3>
-    <p id="userEmail">Loading...</p>
-  </div>
-  <div class="item">
-    <h3>Wallet Balance</h3>
-    <p>₦<span id="balance">0</span></p>
-  </div>
-  <div class="item">
-    <h3>Referral Link</h3>
-    <p id="referralLink">Loading...</p>
-  </div>
-</div>
 
-<nav>
-  <a href="dashboard.html">Home</a>
-  <a href="invest.html">Invest</a>
-  <a href="refer.html">Refer</a>
-  <a href="alert.html">Alerts</a>
-  <a href="profile.html" class="active">Profile</a>
-</nav>
+  <div class="item"><h3>Full Name</h3><p id="fullName"></p></div>
+  <div class="item"><h3>Username</h3><p id="username"></p></div>
+  <div class="item"><h3>Phone</h3><p id="phone"></p></div>
+  <div class="item"><h3>Email</h3><p id="email"></p></div>
+  <div class="item"><h3>Balance</h3><p>₦<span id="balance"></span></p></div>
+  <div class="item"><h3>Referral Code</h3><p id="refCode"></p></div>
+  <div class="item"><h3>Referral Link</h3><p id="refLink"></p></div>
+
+  <button class="btn btn-primary" onclick="location.href='tier.html'">Tier Level</button>
+  <button class="btn" onclick="location.href='changepin.html'">Change PIN</button>
+  <button class="btn" onclick="location.href='resetpin.html'">Reset PIN</button>
+  <button class="btn btn-danger" id="logout">Logout</button>
+
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
   authDomain: "zyppayx-69c54.firebaseapp.com",
   projectId: "zyppayx-69c54",
-  storageBucket: "zyppayx-69c54.firebasestorage.app",
+  storageBucket: "zyppayx-69c54.appspot.com",
   messagingSenderId: "439535581166",
   appId: "1:439535581166:web:994d1c9f75bd1294ef00ff"
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const auth = getAuth();
+const db = getFirestore();
 
-onAuthStateChanged(auth, (user) => {
-  if(!user){
-    window.location.href = "login.html";
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    location.href = "login.html";
     return;
   }
 
-  // Show email
-  document.getElementById("userEmail").textContent = user.email;
+  document.getElementById("email").textContent = user.email;
 
-  // Wallet balance from Firestore
-  const userRef = doc(db, "users", user.uid);
-  onSnapshot(userRef, (snap) => {
-    if(snap.exists()){
-      const data = snap.data();
-      document.getElementById("balance").textContent = data.balance || 0;
+  try {
+    const docRef = doc(db, "users", user.uid);
+    const snap = await getDoc(docRef);
 
-      // Referral link
-      const link = `${window.location.origin}/login.html?ref=${user.uid}`;
-      document.getElementById("referralLink").textContent = link;
+    if (!snap.exists()) {
+      console.log("No user document found");
+      return;
     }
-  });
+
+    const data = snap.data();
+    console.log("User data:", data);
+
+    document.getElementById("fullName").textContent = data.fullName || "N/A";
+    document.getElementById("username").textContent = data.username || "N/A";
+    document.getElementById("phone").textContent = data.phone || "N/A";
+    document.getElementById("balance").textContent = data.balance || 0;
+
+    const refCode = data.refCode || user.uid.slice(0,6);
+    document.getElementById("refCode").textContent = refCode;
+    document.getElementById("refLink").textContent =
+      window.location.origin + "/login.html?ref=" + refCode;
+
+  } catch (err) {
+    console.error("Error:", err);
+  }
 });
+
+document.getElementById("logout").onclick = () => {
+  signOut(auth).then(() => location.href = "login.html");
+};
 </script>
 
 </body>
