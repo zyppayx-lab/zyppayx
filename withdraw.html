@@ -4,62 +4,112 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zyppayxvest | Withdraw</title>
+
 <style>
-body { margin:0; font-family: Arial, Helvetica, sans-serif; background:#f6f8fb;}
-header { background:#0a1f44;color:#fff;padding:20px;text-align:center;font-size:20px;}
-.container { max-width:1100px;margin:auto;padding:15px;}
-.card { background:#fff;padding:18px;border-radius:12px; margin-bottom:20px; box-shadow:0 4px 12px rgba(0,0,0,0.05);}
-.card h3 { margin:0 0 10px 0; font-size:16px; color:#0a1f44;}
-.card p { margin:4px 0; font-size:14px; color:#666;}
-input, select { width:100%; padding:10px; margin-top:10px; border-radius:8px; border:1px solid #ccc; }
-button { margin-top:15px; padding:12px; background:#00c896; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; width:100%; }
-.success { color:green; font-weight:bold; margin-top:10px; }
-.error { color:red; font-weight:bold; margin-top:10px; }
-nav { position:fixed; bottom:0; width:100%; background:#fff; border-top:1px solid #ddd; display:flex; justify-content:space-around; padding:10px 0; }
-nav a { text-decoration:none; color:#555; font-size:13px; text-align:center; }
-nav a.active { color:#00c896; font-weight:bold; }
+body { margin:0; font-family: Arial; background:#f6f8fb;}
+header { background:#0a1f44;color:#fff;padding:20px;text-align:center;}
+.container { max-width:600px;margin:auto;padding:15px;}
+
+.card {
+  background:#fff;
+  padding:18px;
+  border-radius:12px;
+  margin-bottom:20px;
+}
+
+input, select {
+  width:100%;
+  padding:10px;
+  margin-top:10px;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+
+button {
+  margin-top:15px;
+  padding:12px;
+  background:#00c896;
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  width:100%;
+  font-weight:bold;
+}
+
+.success { color:green; }
+.error { color:red; }
 </style>
 </head>
+
 <body>
 
 <header>Request Withdrawal</header>
 
 <div class="container">
 
-  <div class="card">
-    <h3>Your Wallet Balance</h3>
-    <p>₦<span id="balance">0</span></p>
-  </div>
+<div class="card">
+<h3>Your Wallet Balance</h3>
+<p>₦<span id="balance">0</span></p>
+</div>
 
-  <div class="card">
-    <h3>Withdrawal Form</h3>
-    <input type="number" id="amount" placeholder="Enter amount to withdraw" />
-    <input type="text" id="bankName" placeholder="Bank Name" />
-    <input type="text" id="accountNumber" placeholder="Account Number" />
-    <button id="withdrawBtn">Request Withdrawal</button>
-    <p id="message"></p>
-  </div>
+<div class="card">
+<h3>Withdrawal Form</h3>
+
+<input type="number" id="amount" placeholder="Enter amount">
+<p id="feeInfo"></p>
+
+<select id="bankName">
+<option value="">Select Bank</option>
+<option>Access Bank</option>
+<option>GTBank</option>
+<option>Zenith Bank</option>
+<option>First Bank</option>
+<option>UBA</option>
+<option>Fidelity Bank</option>
+<option>Union Bank</option>
+<option>Sterling Bank</option>
+<option>Wema Bank</option>
+<option>Polaris Bank</option>
+<option>Stanbic IBTC</option>
+<option>FCMB</option>
+<option>Ecobank</option>
+<option>Kuda Bank</option>
+<option>Opay</option>
+<option>Palmpay</option>
+<option>Moniepoint MFB</option>
+</select>
+
+<input type="text" id="accountName" placeholder="Account Name">
+<input type="text" id="accountNumber" placeholder="Account Number">
+<input type="password" id="pin" maxlength="4" placeholder="Enter 4-digit PIN">
+
+<button id="withdrawBtn">Request Withdrawal</button>
+<p id="message"></p>
 
 </div>
 
-<nav>
-  <a href="dashboard.html">Home</a>
-  <a href="invest.html">Invest</a>
-  <a href="refer.html">Refer</a>
-  <a href="alert.html">Alerts</a>
-  <a href="profile.html">Profile</a>
-</nav>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  collection,
+  addDoc,
+  serverTimestamp,
+  query,
+  where,
+  getDocs
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
   authDomain: "zyppayx-69c54.firebaseapp.com",
   projectId: "zyppayx-69c54",
-  storageBucket: "zyppayx-69c54.firebasestorage.app",
+  storageBucket: "zyppayx-69c54.appspot.com",
   messagingSenderId: "439535581166",
   appId: "1:439535581166:web:994d1c9f75bd1294ef00ff"
 };
@@ -68,79 +118,131 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-let currentBalance = 0;
 let currentUserId = "";
+let currentBalance = 0;
+let savedPinHash = "";
+let userTier = 1;
 
+const feePercent = 0.05;
+
+// HASH PIN
+async function hashPin(pin) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(pin);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// LOAD USER
 onAuthStateChanged(auth, async (user) => {
-  if (!user) { window.location.href='login.html'; return; }
+  if (!user) return location.href = "login.html";
 
   currentUserId = user.uid;
-  const userRef = doc(db, "users", user.uid);
-  const userSnap = await getDoc(userRef);
 
-  if (userSnap.exists()) {
-    const data = userSnap.data();
+  const snap = await getDoc(doc(db, "users", user.uid));
+  if (snap.exists()) {
+    const data = snap.data();
     currentBalance = data.balance || 0;
+    savedPinHash = data.pinHash || "";
+    userTier = data.tier || 1;
+
     document.getElementById("balance").textContent = currentBalance;
   }
 });
 
-// Withdrawal logic
+// LIVE FEE
+document.getElementById("amount").addEventListener("input", () => {
+  const amt = parseInt(document.getElementById("amount").value) || 0;
+
+  if (amt > 0) {
+    const fee = Math.floor(amt * feePercent);
+    const receive = amt - fee;
+
+    document.getElementById("feeInfo").textContent =
+      `Fee: ₦${fee} | You receive: ₦${receive}`;
+  } else {
+    document.getElementById("feeInfo").textContent = "";
+  }
+});
+
+// WITHDRAW
 document.getElementById("withdrawBtn").onclick = async () => {
-  const amount = parseInt(document.getElementById("amount").value);
-  const bankName = document.getElementById("bankName").value.trim();
+  const rawAmount = parseInt(document.getElementById("amount").value);
+  const fee = Math.floor(rawAmount * feePercent);
+  const amountToReceive = rawAmount - fee;
+
+  const bankName = document.getElementById("bankName").value;
+  const accountName = document.getElementById("accountName").value.trim();
   const accountNumber = document.getElementById("accountNumber").value.trim();
-  const messageEl = document.getElementById("message");
+  const pin = document.getElementById("pin").value;
 
-  messageEl.textContent = "";
-  messageEl.className = "";
+  const msg = document.getElementById("message");
+  msg.textContent = "";
+  msg.className = "";
 
-  if (!amount || amount < 1000) {
-    messageEl.textContent = "Minimum withdrawal is ₦1000";
-    messageEl.className = "error";
+  if (!rawAmount || rawAmount < 1000) {
+    msg.textContent = "Minimum withdrawal is ₦1000";
+    msg.className = "error";
     return;
   }
 
-  if (!bankName || !accountNumber) {
-    messageEl.textContent = "Please fill in all bank details.";
-    messageEl.className = "error";
+  if (rawAmount > currentBalance) {
+    msg.textContent = "Insufficient balance";
+    msg.className = "error";
     return;
   }
 
-  // Submit withdrawal request to Firestore
+  let maxLimit = 50000;
+  if (userTier == 2) maxLimit = 200000;
+  if (userTier == 3) maxLimit = Infinity;
+
+  if (rawAmount > maxLimit) {
+    msg.textContent = `Your tier limit is ₦${maxLimit}`;
+    msg.className = "error";
+    return;
+  }
+
+  const q = query(
+    collection(db, "withdrawals"),
+    where("userId", "==", currentUserId),
+    where("status", "==", "pending")
+  );
+
+  const pendingSnap = await getDocs(q);
+  if (!pendingSnap.empty) {
+    msg.textContent = "You already have a pending withdrawal";
+    msg.className = "error";
+    return;
+  }
+
+  const hashedInput = await hashPin(pin);
+  if (hashedInput !== savedPinHash) {
+    msg.textContent = "Incorrect PIN";
+    msg.className = "error";
+    return;
+  }
+
   try {
-    const withdrawRef = collection(db, "withdrawals");
-    await addDoc(withdrawRef, {
+    await addDoc(collection(db, "withdrawals"), {
       userId: currentUserId,
-      amount: amount,
-      bankName: bankName,
-      accountNumber: accountNumber,
-      status: amount <= currentBalance ? "pending" : "awaiting_funds",
-      createdAt: serverTimestamp(),
-      notified: false
+      amount: rawAmount,
+      fee: fee,
+      amountToReceive: amountToReceive,
+      bankName,
+      accountName,
+      accountNumber,
+      status: "pending",
+      createdAt: serverTimestamp()
     });
 
-    messageEl.textContent = "Withdrawal request submitted. Await approval.";
-    messageEl.className = "success";
+    msg.textContent = "Withdrawal submitted";
+    msg.className = "success";
 
-    // Deduct immediately if balance sufficient
-    if (amount <= currentBalance) {
-      const userRef = doc(db, "users", currentUserId);
-      await updateDoc(userRef, {
-        balance: currentBalance - amount
-      });
-      currentBalance -= amount;
-      document.getElementById("balance").textContent = currentBalance;
-    }
-
-    document.getElementById("amount").value = "";
-    document.getElementById("bankName").value = "";
-    document.getElementById("accountNumber").value = "";
-
-  } catch (error) {
-    console.error(error);
-    messageEl.textContent = "An error occurred. Please try again.";
-    messageEl.className = "error";
+  } catch (err) {
+    msg.textContent = "Error occurred";
+    msg.className = "error";
   }
 };
 </script>
