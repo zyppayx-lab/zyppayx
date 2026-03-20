@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Withdrawal History</title>
+
+<style>
+body { margin:0; font-family: Arial; background:#f6f8fb; }
+
+header {
+  background:#0a1f44;
+  color:#fff;
+  padding:20px;
+  text-align:center;
+}
+
+.container {
+  max-width:700px;
+  margin:auto;
+  padding:15px;
+}
+
+.filters {
+  display:flex;
+  gap:10px;
+  margin-bottom:15px;
+}
+
+.filter-btn {
+  flex:1;
+  padding:8px;
+  border:none;
+  border-radius:8px;
+  background:#ddd;
+}
+
+.active { background:#0a1f44; color:#fff; }
+
+.card {
+  background:#fff;
+  padding:15px;
+  border-radius:12px;
+  margin-bottom:12px;
+}
+
+.top {
+  display:flex;
+  justify-content:space-between;
+}
+
+.amount { font-weight:bold; }
+
+.status {
+  padding:4px 10px;
+  border-radius:8px;
+  font-size:12px;
+}
+
+.pending { background:#fff4e5; color:#ff9800; }
+.success { background:#e8f5e9; color:#2e7d32; }
+.failed { background:#fdecea; color:#c62828; }
+
+.small { font-size:13px; color:#555; }
+
+.empty { text-align:center; margin-top:30px; }
+
+.back {
+  text-align:center;
+  margin-top:15px;
+}
+</style>
+</head>
+
+<body>
+
+<header>Withdrawal History</header>
+
+<div class="container">
+
+<div class="filters">
+<button class="filter-btn active" data-filter="all">All</button>
+<button class="filter-btn" data-filter="pending">Pending</button>
+<button class="filter-btn" data-filter="success">Success</button>
+<button class="filter-btn" data-filter="failed">Failed</button>
+</div>
+
+<div id="historyContainer"></div>
+
+<div class="back">
+<a href="withdraw.html">← Back</a>
+</div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
+  authDomain: "zyppayx-69c54.firebaseapp.com",
+  projectId: "zyppayx-69c54",
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const container = document.getElementById("historyContainer");
+let currentFilter = "all";
+
+// FILTER BUTTONS
+document.querySelectorAll(".filter-btn").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentFilter = btn.dataset.filter;
+    loadData();
+  };
+});
+
+let unsubscribe = null;
+
+// LOAD DATA (REALTIME)
+function loadData() {
+
+  if (unsubscribe) unsubscribe();
+
+  onAuthStateChanged(auth, user => {
+    if (!user) return location.href="login.html";
+
+    let q = query(
+      collection(db,"withdrawals"),
+      where("userId","==",user.uid),
+      orderBy("createdAt","desc")
+    );
+
+    unsubscribe = onSnapshot(q, snap => {
+
+      if (snap.empty) {
+        container.innerHTML = "<p class='empty'>No withdrawals yet</p>";
+        return;
+      }
+
+      container.innerHTML = "";
+
+      snap.forEach(doc => {
+        const data = doc.data();
+
+        if (currentFilter !== "all" && data.status !== currentFilter) return;
+
+        let statusClass = data.status || "pending";
+        const date = data.createdAt?.toDate().toLocaleString() || "-";
+
+        const card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+          <div class="top">
+            <div class="amount">₦${data.amount}</div>
+            <div class="status ${statusClass}">${data.status}</div>
+          </div>
+
+          <div class="small">Receive: ₦${data.amountToReceive}</div>
+          <div class="small">Fee: ₦${data.fee || 0}</div>
+          <div class="small">Bank: ${data.bankName}</div>
+          <div class="small">Acct: ${data.accountNumber}</div>
+          <div class="small">Date: ${date}</div>
+        `;
+
+        container.appendChild(card);
+      });
+
+    });
+
+  });
+}
+
+// INITIAL LOAD
+loadData();
+</script>
+
+</body>
+  </html>
