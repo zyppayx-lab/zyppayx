@@ -10,6 +10,7 @@ body { margin:0; font-family: Arial; background:#f6f8fb;}
 header { background:#0a1f44;color:#fff;padding:20px;text-align:center;}
 .container { max-width:600px;margin:auto;padding:15px;}
 .card { background:#fff;padding:18px;border-radius:12px;margin-bottom:20px;}
+
 input, select {
   width:100%;
   padding:10px;
@@ -17,6 +18,7 @@ input, select {
   border-radius:8px;
   border:1px solid #ccc;
 }
+
 button {
   margin-top:15px;
   padding:12px;
@@ -27,8 +29,46 @@ button {
   width:100%;
   font-weight:bold;
 }
+
 .success { color:green; }
 .error { color:red; }
+
+/* 🔐 PIN UI */
+.pin-display {
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  margin:15px 0;
+}
+
+.pin-dot {
+  width:15px;
+  height:15px;
+  border-radius:50%;
+  border:2px solid #333;
+}
+
+.pin-dot.filled {
+  background:#333;
+}
+
+.keypad {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+}
+
+.keypad button {
+  padding:15px;
+  font-size:18px;
+  border-radius:10px;
+  background:#eaeaea;
+  color:#000;
+}
+
+.keypad button:active {
+  background:#ccc;
+}
 </style>
 </head>
 
@@ -49,30 +89,68 @@ button {
 <input type="number" id="amount" placeholder="Enter amount">
 <p id="feeInfo"></p>
 
+<!-- 🏦 FULL NIGERIA BANKS -->
 <select id="bankName">
 <option value="">Select Bank</option>
+
 <option>Access Bank</option>
-<option>GTBank</option>
-<option>Zenith Bank</option>
-<option>First Bank</option>
-<option>UBA</option>
+<option>Citibank Nigeria</option>
+<option>Ecobank Nigeria</option>
 <option>Fidelity Bank</option>
-<option>Union Bank</option>
-<option>Sterling Bank</option>
-<option>Wema Bank</option>
+<option>First Bank of Nigeria</option>
+<option>First City Monument Bank (FCMB)</option>
+<option>Globus Bank</option>
+<option>Guaranty Trust Bank (GTBank)</option>
+<option>Heritage Bank</option>
+<option>Keystone Bank</option>
 <option>Polaris Bank</option>
-<option>Stanbic IBTC</option>
-<option>FCMB</option>
-<option>Ecobank</option>
-<option>Kuda Bank</option>
+<option>Providus Bank</option>
+<option>Stanbic IBTC Bank</option>
+<option>Standard Chartered Bank Nigeria</option>
+<option>Sterling Bank</option>
+<option>SunTrust Bank Nigeria</option>
+<option>Titan Trust Bank</option>
+<option>Union Bank of Nigeria</option>
+<option>United Bank for Africa (UBA)</option>
+<option>Unity Bank</option>
+<option>Wema Bank</option>
+<option>Zenith Bank</option>
+
 <option>Opay</option>
 <option>Palmpay</option>
+<option>Kuda Bank</option>
 <option>Moniepoint MFB</option>
+<option>VFD Microfinance Bank</option>
+<option>Rubies MFB</option>
+<option>Eyowo</option>
 </select>
 
 <input type="text" id="accountName" placeholder="Account Name">
 <input type="text" id="accountNumber" placeholder="Account Number">
-<input type="password" id="pin" maxlength="4" placeholder="Enter 4-digit PIN">
+
+<!-- 🔐 PIN DISPLAY -->
+<div class="pin-display">
+  <div class="pin-dot" id="d1"></div>
+  <div class="pin-dot" id="d2"></div>
+  <div class="pin-dot" id="d3"></div>
+  <div class="pin-dot" id="d4"></div>
+</div>
+
+<!-- 🔢 KEYPAD -->
+<div class="keypad">
+  <button onclick="press(1)">1</button>
+  <button onclick="press(2)">2</button>
+  <button onclick="press(3)">3</button>
+  <button onclick="press(4)">4</button>
+  <button onclick="press(5)">5</button>
+  <button onclick="press(6)">6</button>
+  <button onclick="press(7)">7</button>
+  <button onclick="press(8)">8</button>
+  <button onclick="press(9)">9</button>
+  <button onclick="clearPin()">⌫</button>
+  <button onclick="press(0)">0</button>
+  <button onclick="clearAll()">C</button>
+</div>
 
 <button id="withdrawBtn" disabled>Request Withdrawal</button>
 <p id="message"></p>
@@ -83,213 +161,114 @@ button {
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  updateDoc,
-  collection,
-  addDoc,
-  serverTimestamp,
-  query,
-  where,
-  getDocs
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
-  authDomain: "zyppayx-69c54.firebaseapp.com",
-  projectId: "zyppayx-69c54",
-  storageBucket: "zyppayx-69c54.appspot.com",
-  messagingSenderId: "439535581166",
-  appId: "1:439535581166:web:994d1c9f75bd1294ef00ff"
+  apiKey: "YOUR_KEY",
+  authDomain: "YOUR_DOMAIN",
+  projectId: "YOUR_ID"
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const functions = getFunctions(app);
 
-let currentUserId = "";
-let currentBalance = 0;
-let savedPinHash = "";
-let userTier = 1;
-let failedAttempts = 0;
-let lockUntil = 0;
+const withdrawFn = httpsCallable(functions, "requestWithdrawal");
 
-const feePercent = 0.05;
+let pinValue = "";
 
-const pinInput = document.getElementById("pin");
+const dots = [
+  document.getElementById("d1"),
+  document.getElementById("d2"),
+  document.getElementById("d3"),
+  document.getElementById("d4")
+];
+
 const withdrawBtn = document.getElementById("withdrawBtn");
 const msg = document.getElementById("message");
 
-// HASH PIN
-async function hashPin(pin) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(pin);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join("");
+/* 🔐 PIN SYSTEM */
+window.press = (num) => {
+  if (pinValue.length >= 4) return;
+  pinValue += num;
+  updateDots();
+  if (pinValue.length === 4) withdrawBtn.disabled = false;
+};
+
+window.clearPin = () => {
+  pinValue = pinValue.slice(0, -1);
+  updateDots();
+  withdrawBtn.disabled = true;
+};
+
+window.clearAll = () => {
+  pinValue = "";
+  updateDots();
+  withdrawBtn.disabled = true;
+};
+
+function updateDots() {
+  dots.forEach((dot, i) => {
+    dot.classList.toggle("filled", i < pinValue.length);
+  });
 }
 
-// ENABLE BUTTON WHEN PIN IS 4 DIGITS
-pinInput.addEventListener("input", () => {
-  withdrawBtn.disabled = pinInput.value.length !== 4;
-});
-
-// LOAD USER DATA
+/* LOAD USER */
 onAuthStateChanged(auth, async (user) => {
   if (!user) return location.href = "login.html";
 
-  currentUserId = user.uid;
-
   const snap = await getDoc(doc(db, "users", user.uid));
   if (snap.exists()) {
-    const data = snap.data();
-    currentBalance = data.balance || 0;
-    savedPinHash = data.pinHash || "";
-    userTier = data.tier || 1;
-    failedAttempts = data.failedAttempts || 0;
-    lockUntil = data.lockUntil || 0;
-
-    document.getElementById("balance").textContent = currentBalance;
+    document.getElementById("balance").textContent =
+      snap.data().balance || 0;
   }
 });
 
-// LIVE FEE DISPLAY
-document.getElementById("amount").addEventListener("input", () => {
-  const amt = parseInt(document.getElementById("amount").value) || 0;
-
-  if (amt > 0) {
-    const fee = Math.floor(amt * feePercent);
-    const receive = amt - fee;
-
-    document.getElementById("feeInfo").textContent =
-      `Fee: ₦${fee} | You receive: ₦${receive}`;
-  } else {
-    document.getElementById("feeInfo").textContent = "";
-  }
-});
-
-// WITHDRAW FUNCTION
+/* 🚀 WITHDRAW */
 withdrawBtn.onclick = async () => {
 
-  const now = Date.now();
-
-  // 🔐 CHECK LOCK (SERVER SIDE)
-  if (now < lockUntil) {
-    const remaining = Math.ceil((lockUntil - now) / 1000);
-    msg.textContent = `Locked. Try again in ${remaining}s`;
-    msg.className = "error";
-    return;
-  }
-
-  const pin = pinInput.value;
-
-  if (!pin || pin.length !== 4) {
-    msg.textContent = "Enter PIN first";
-    msg.className = "error";
-    return;
-  }
-
-  const hashedInput = await hashPin(pin);
-
-  // ❌ WRONG PIN
-  if (hashedInput !== savedPinHash) {
-    failedAttempts++;
-
-    let updateData = { failedAttempts };
-
-    if (failedAttempts >= 3) {
-      updateData.lockUntil = now + 30000;
-      msg.textContent = "Too many attempts. Locked 30s";
-    } else {
-      msg.textContent = `Wrong PIN (${failedAttempts}/3)`;
-    }
-
-    msg.className = "error";
-    await updateDoc(doc(db, "users", currentUserId), updateData);
-    return;
-  }
-
-  // ✅ RESET SECURITY
-  await updateDoc(doc(db, "users", currentUserId), {
-    failedAttempts: 0,
-    lockUntil: 0
-  });
-
-  const rawAmount = parseInt(document.getElementById("amount").value);
-  const fee = Math.floor(rawAmount * feePercent);
-  const amountToReceive = rawAmount - fee;
-
+  const amount = parseInt(document.getElementById("amount").value);
   const bankName = document.getElementById("bankName").value;
   const accountName = document.getElementById("accountName").value.trim();
   const accountNumber = document.getElementById("accountNumber").value.trim();
 
-  if (!rawAmount || rawAmount < 1000) {
+  if (!amount || amount < 1000) {
     msg.textContent = "Minimum ₦1000";
     msg.className = "error";
     return;
   }
 
-  if (rawAmount > currentBalance) {
-    msg.textContent = "Insufficient balance";
-    msg.className = "error";
-    return;
-  }
-
-  let maxLimit = 50000;
-  if (userTier == 2) maxLimit = 200000;
-  if (userTier == 3) maxLimit = Infinity;
-
-  if (rawAmount > maxLimit) {
-    msg.textContent = `Limit ₦${maxLimit}`;
-    msg.className = "error";
-    return;
-  }
-
-  const q = query(
-    collection(db, "withdrawals"),
-    where("userId", "==", currentUserId),
-    where("status", "==", "pending")
-  );
-
-  const pendingSnap = await getDocs(q);
-  if (!pendingSnap.empty) {
-    msg.textContent = "Pending withdrawal exists";
+  if (!bankName || !accountName || !accountNumber) {
+    msg.textContent = "Complete all fields";
     msg.className = "error";
     return;
   }
 
   try {
-    await addDoc(collection(db, "withdrawals"), {
-      userId: currentUserId,
-      amount: rawAmount,
-      fee,
-      amountToReceive,
-      bankName,
-      accountName,
-      accountNumber,
-      status: "pending",
-      createdAt: serverTimestamp()
-    });
-
-    msg.textContent = "Withdrawal submitted";
-    msg.className = "success";
-
-    // CLEAR FORM
-    document.getElementById("amount").value = "";
-    document.getElementById("accountName").value = "";
-    document.getElementById("accountNumber").value = "";
-    pinInput.value = "";
     withdrawBtn.disabled = true;
 
+    const res = await withdrawFn({
+      amount,
+      pin: pinValue,
+      bankName,
+      accountName,
+      accountNumber
+    });
+
+    msg.textContent = res.data.message;
+    msg.className = "success";
+
+    clearAll();
+
   } catch (err) {
-    msg.textContent = "Error occurred";
+    msg.textContent = err.message;
     msg.className = "error";
+    withdrawBtn.disabled = false;
   }
 };
 </script>
 
 </body>
-  </html>
+</html>
