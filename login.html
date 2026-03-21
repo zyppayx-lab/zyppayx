@@ -20,7 +20,7 @@ body {
   width:100%;
   max-width:380px;
   padding:25px;
-  border-radius:8px;
+  border-radius:10px;
   box-shadow:0 6px 15px rgba(0,0,0,0.08);
 }
 
@@ -31,7 +31,7 @@ input {
   padding:12px;
   margin-bottom:15px;
   border:1px solid #ccc;
-  border-radius:5px;
+  border-radius:6px;
 }
 
 button {
@@ -40,13 +40,49 @@ button {
   background:#00c896;
   color:#fff;
   border:none;
-  border-radius:5px;
+  border-radius:6px;
   cursor:pointer;
 }
 
 .google-btn { background:#4285f4; margin-top:10px; }
 
 .hidden { display:none; }
+
+/* LOADER */
+.loader {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #00c896;
+  border-radius: 50%;
+  width: 25px;
+  height: 25px;
+  animation: spin 1s linear infinite;
+  margin: auto;
+}
+
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+
+/* TOAST */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 6px;
+  display:none;
+}
+
+/* SUCCESS */
+.success-check {
+  font-size:50px;
+  color:#00c896;
+  text-align:center;
+  display:none;
+}
 </style>
 </head>
 
@@ -56,15 +92,17 @@ button {
 
 <h2 id="formTitle">Login</h2>
 
-<!-- NAME (NOW FIRST) -->
-<input type="text" id="name" placeholder="Full Name" class="hidden"/>
+<div class="success-check" id="successCheck">✔</div>
 
+<input type="text" id="name" placeholder="Full Name" class="hidden"/>
 <input type="tel" id="phone" placeholder="Phone Number" class="hidden"/>
 <input type="email" id="email" placeholder="Email"/>
 <input type="password" id="password" placeholder="Password"/>
 <input type="text" id="referral" placeholder="Referral Code (optional)" class="hidden"/>
 
 <button id="submitBtn">Login</button>
+<div id="loader" class="loader hidden"></div>
+
 <button class="google-btn" id="googleBtn">Continue with Google</button>
 
 <p style="text-align:center;margin-top:10px;">
@@ -72,6 +110,8 @@ button {
 </p>
 
 </div>
+
+<div id="toast" class="toast"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -87,9 +127,7 @@ import {
   getFirestore,
   doc,
   setDoc,
-  getDoc,
-  updateDoc,
-  increment
+  getDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -111,114 +149,132 @@ let isLogin = true;
 const formTitle = document.getElementById("formTitle");
 const submitBtn = document.getElementById("submitBtn");
 const toggleText = document.getElementById("toggleText");
+const loader = document.getElementById("loader");
+const successCheck = document.getElementById("successCheck");
+
 const nameInput = document.getElementById("name");
 const phoneInput = document.getElementById("phone");
 const referralInput = document.getElementById("referral");
+
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+
+function showToast(msg){
+  const toast = document.getElementById("toast");
+  toast.textContent = msg;
+  toast.style.display = "block";
+  setTimeout(()=> toast.style.display="none",3000);
+}
+
+function setLoading(state){
+  loader.classList.toggle("hidden", !state);
+  submitBtn.disabled = state;
+}
 
 // TOGGLE
 toggleText.onclick = () => {
   isLogin = !isLogin;
 
-  if (isLogin) {
-    formTitle.textContent = "Login";
-    submitBtn.textContent = "Login";
-    toggleText.textContent = "Don't have an account? Sign up";
+  formTitle.textContent = isLogin ? "Login" : "Sign Up";
+  submitBtn.textContent = isLogin ? "Login" : "Create Account";
+  toggleText.textContent = isLogin
+    ? "Don't have an account? Sign up"
+    : "Already have an account? Login";
 
-    nameInput.classList.add("hidden");
-    phoneInput.classList.add("hidden");
-    referralInput.classList.add("hidden");
-  } else {
-    formTitle.textContent = "Sign Up";
-    submitBtn.textContent = "Create Account";
-    toggleText.textContent = "Already have an account? Login";
-
-    nameInput.classList.remove("hidden");
-    phoneInput.classList.remove("hidden");
-    referralInput.classList.remove("hidden");
-  }
+  nameInput.classList.toggle("hidden", isLogin);
+  phoneInput.classList.toggle("hidden", isLogin);
+  referralInput.classList.toggle("hidden", isLogin);
 };
 
 // SUBMIT
 submitBtn.onclick = async () => {
-  const email = email.value;
-  const password = password.value;
+  const email = emailInput.value;
+  const password = passwordInput.value;
 
   if (!email || !password) {
-    alert("Fill all fields");
+    showToast("Fill all fields");
     return;
   }
+
+  setLoading(true);
 
   try {
     if (isLogin) {
       await signInWithEmailAndPassword(auth, email, password);
-      window.location.href = "dashboard.html";
+
+      successCheck.style.display = "block";
+      setTimeout(()=> window.location.href="dashboard.html",1000);
+
     } else {
       const name = nameInput.value;
       const phone = phoneInput.value;
-      const refCode = referralInput.value;
 
       if (!name || !phone) {
-        alert("Enter name & phone");
+        showToast("Enter name & phone");
+        setLoading(false);
         return;
       }
 
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       const uid = cred.user.uid;
-      const myRefCode = uid.slice(0,6).toUpperCase();
+      const refCode = uid.slice(0,6).toUpperCase();
 
-      await setDoc(doc(db, "users", uid), {
-        fullName: name,
-        username: name.toLowerCase().replace(/\s/g,''),
+      await setDoc(doc(db,"users",uid),{
+        fullName:name,
         phone,
         email,
-        balance: 0,
-        referralCode: myRefCode,
-        createdAt: Date.now()
+        balance:0,
+        referralCode:refCode,
+        createdAt:Date.now()
       });
 
-      await setDoc(doc(db, "referrals", myRefCode), { uid });
+      await setDoc(doc(db,"referrals",refCode),{ uid });
 
-      // Redirect to create PIN 🔥
-      window.location.href = "createpin.html";
+      successCheck.style.display = "block";
+      setTimeout(()=> window.location.href="createpin.html",1000);
     }
 
-  } catch(err) {
-    alert(err.message);
+  } catch(err){
+    showToast(err.message);
   }
+
+  setLoading(false);
 };
 
 // GOOGLE LOGIN
 document.getElementById("googleBtn").onclick = async () => {
-  try {
+  try{
+    setLoading(true);
+
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
 
-    const userRef = doc(db, "users", user.uid);
-    const snap = await getDoc(userRef);
+    const ref = doc(db,"users",user.uid);
+    const snap = await getDoc(ref);
 
-    if (!snap.exists()) {
-      const refCode = user.uid.slice(0,6).toUpperCase();
+    if(!snap.exists()){
+      const code = user.uid.slice(0,6).toUpperCase();
 
-      await setDoc(userRef, {
-        fullName: user.displayName,
-        username: user.displayName?.toLowerCase().replace(/\s/g,''),
-        email: user.email,
-        phone: "",
-        balance: 0,
-        referralCode: refCode
+      await setDoc(ref,{
+        fullName:user.displayName,
+        email:user.email,
+        balance:0,
+        referralCode:code
       });
 
-      await setDoc(doc(db, "referrals", refCode), { uid: user.uid });
+      await setDoc(doc(db,"referrals",code),{ uid:user.uid });
     }
 
-    // Redirect to PIN setup
-    window.location.href = "createpin.html";
+    successCheck.style.display = "block";
+    setTimeout(()=> window.location.href="createpin.html",1000);
 
-  } catch(err){
-    alert(err.message);
+  }catch(err){
+    showToast(err.message);
   }
+
+  setLoading(false);
 };
 </script>
 
 </body>
-</html>
+  </html>
