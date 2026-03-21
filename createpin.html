@@ -13,47 +13,88 @@ body {
   justify-content:center;
   align-items:center;
   height:100vh;
+  margin:0;
 }
 
 .box {
   background:#fff;
   padding:25px;
+  border-radius:12px;
   width:100%;
   max-width:350px;
-  border-radius:10px;
-  box-shadow:0 4px 12px rgba(0,0,0,0.08);
-}
-
-h2 {
   text-align:center;
-  color:#0a1f44;
 }
 
-input {
-  width:100%;
-  padding:12px;
-  margin-top:10px;
-  border:1px solid #ccc;
-  border-radius:6px;
-  font-size:16px;
-  text-align:center;
-  letter-spacing:5px;
+h3 { color:#0a1f44; }
+
+.pin-dots {
+  display:flex;
+  justify-content:center;
+  gap:15px;
+  margin:20px 0;
 }
 
-button {
-  width:100%;
-  padding:12px;
-  margin-top:15px;
+.dot {
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  border:2px solid #ccc;
+}
+
+.filled {
   background:#00c896;
-  border:none;
-  color:#fff;
-  border-radius:6px;
-  font-size:16px;
-  cursor:pointer;
+  border-color:#00c896;
 }
 
-button:hover {
-  opacity:0.9;
+.keypad {
+  display:grid;
+  grid-template-columns: repeat(3,1fr);
+  gap:10px;
+}
+
+.keypad button {
+  padding:15px;
+  font-size:18px;
+  border:none;
+  border-radius:10px;
+  background:#eee;
+}
+
+.keypad button:active {
+  background:#ddd;
+}
+
+.loader {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #00c896;
+  border-radius: 50%;
+  width: 25px;
+  height: 25px;
+  animation: spin 1s linear infinite;
+  margin: 15px auto;
+  display:none;
+}
+
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background:#333;
+  color:#fff;
+  padding:10px 20px;
+  border-radius:6px;
+  display:none;
+}
+
+.success {
+  font-size:40px;
+  color:#00c896;
+  display:none;
 }
 </style>
 </head>
@@ -61,81 +102,137 @@ button:hover {
 <body>
 
 <div class="box">
-  <h2>Create Withdrawal PIN</h2>
 
-  <input type="password" id="pin" maxlength="4" placeholder="Enter 4-digit PIN">
-  <input type="password" id="confirmPin" maxlength="4" placeholder="Confirm PIN">
+<h3>Create 4-digit PIN</h3>
 
-  <button id="savePin">Save PIN</button>
+<div class="pin-dots" id="dots">
+  <div class="dot"></div>
+  <div class="dot"></div>
+  <div class="dot"></div>
+  <div class="dot"></div>
 </div>
 
+<div class="success" id="success">✔</div>
+<div class="loader" id="loader"></div>
+
+<div class="keypad" id="keypad"></div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
-  authDomain: "zyppayx-69c54.firebaseapp.com",
-  projectId: "zyppayx-69c54",
-  storageBucket: "zyppayx-69c54.appspot.com",
-  messagingSenderId: "439535581166",
-  appId: "1:439535581166:web:994d1c9f75bd1294ef00ff"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-// 🔐 HASH FUNCTION (SHA-256)
-async function hashPin(pin) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(pin);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+/* =========================
+   🔥 CLOUD API FUNCTION
+   ========================= */
+async function apiCall(endpoint, data){
+  const res = await fetch(`https://YOUR_CLOUD_FUNCTION_URL/${endpoint}`,{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify(data)
+  });
+  return await res.json();
 }
 
-// SAVE PIN
-document.getElementById("savePin").onclick = async () => {
-  const pin = document.getElementById("pin").value;
-  const confirmPin = document.getElementById("confirmPin").value;
+/* =========================
+   UI ELEMENTS
+   ========================= */
+const dots = document.querySelectorAll(".dot");
+const keypad = document.getElementById("keypad");
+const toast = document.getElementById("toast");
+const loader = document.getElementById("loader");
+const success = document.getElementById("success");
 
-  // VALIDATION
-  if (pin.length !== 4 || isNaN(pin)) {
-    alert("PIN must be exactly 4 digits");
-    return;
+let pin = "";
+
+/* =========================
+   TOAST
+   ========================= */
+function showToast(msg){
+  toast.textContent = msg;
+  toast.style.display = "block";
+  setTimeout(()=> toast.style.display="none",3000);
+}
+
+/* =========================
+   UPDATE DOTS
+   ========================= */
+function updateDots(){
+  dots.forEach((d,i)=>{
+    d.classList.toggle("filled", i < pin.length);
+  });
+}
+
+/* =========================
+   HANDLE INPUT
+   ========================= */
+function handleInput(num){
+  if(pin.length >= 4) return;
+
+  pin += num;
+  updateDots();
+
+  if(pin.length === 4){
+    submitPin();
+  }
+}
+
+function handleDelete(){
+  pin = pin.slice(0,-1);
+  updateDots();
+}
+
+/* =========================
+   SUBMIT PIN (CLOUD READY)
+   ========================= */
+async function submitPin(){
+  loader.style.display = "block";
+
+  try{
+    const res = await apiCall("createPin", { pin });
+
+    if(!res.success){
+      showToast(res.message || "Error");
+      loader.style.display = "none";
+      pin = "";
+      updateDots();
+      return;
+    }
+
+    success.style.display = "block";
+
+    setTimeout(()=>{
+      window.location.href = "dashboard.html";
+    },1000);
+
+  }catch(err){
+    showToast("Network error");
   }
 
-  if (pin !== confirmPin) {
-    alert("PINs do not match");
-    return;
+  loader.style.display = "none";
+}
+
+/* =========================
+   BUILD KEYPAD
+   ========================= */
+const keys = [1,2,3,4,5,6,7,8,9,"",0,"⌫"];
+
+keys.forEach(k=>{
+  const btn = document.createElement("button");
+  btn.textContent = k;
+
+  if(k === ""){
+    btn.style.visibility = "hidden";
   }
 
-  const user = auth.currentUser;
+  btn.onclick = ()=>{
+    if(k === "⌫") handleDelete();
+    else handleInput(k);
+  };
 
-  if (!user) {
-    window.location.href = "login.html";
-    return;
-  }
-
-  try {
-    const hashedPin = await hashPin(pin);
-
-    await updateDoc(doc(db, "users", user.uid), {
-      pinHash: hashedPin
-    });
-
-    alert("Secure PIN created successfully");
-
-    // Redirect after success
-    window.location.href = "dashboard.html";
-
-  } catch (error) {
-    console.error(error);
-    alert("Error saving PIN: " + error.message);
-  }
-};
+  keypad.appendChild(btn);
+});
 </script>
 
 </body>
