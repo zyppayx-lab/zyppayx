@@ -6,13 +6,50 @@
 <title>Change PIN</title>
 
 <style>
-body { font-family: Arial; background:#f6f8fb; }
+body { font-family: Arial; background:#f6f8fb; text-align:center; }
+
 .container { max-width:400px;margin:auto;padding:20px;}
 .card { background:#fff;padding:20px;border-radius:12px;}
-input { width:100%;padding:10px;margin-top:10px;border-radius:8px;border:1px solid #ccc;}
-button { width:100%;padding:12px;margin-top:15px;background:#00c896;color:#fff;border:none;border-radius:8px;}
-.success { color:green; }
-.error { color:red; }
+
+.pin-box {
+  display:flex;
+  justify-content:space-between;
+  margin:15px 0;
+}
+.pin-box div {
+  width:50px;
+  height:50px;
+  border:2px solid #ccc;
+  border-radius:10px;
+  line-height:50px;
+  font-size:20px;
+}
+
+.keypad {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+}
+
+.keypad button {
+  padding:15px;
+  font-size:18px;
+  border:none;
+  border-radius:10px;
+  background:#eee;
+}
+
+.toast {
+  position:fixed;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%);
+  background:#333;
+  color:#fff;
+  padding:12px 20px;
+  border-radius:8px;
+  display:none;
+}
 </style>
 </head>
 
@@ -20,99 +57,136 @@ button { width:100%;padding:12px;margin-top:15px;background:#00c896;color:#fff;b
 
 <div class="container">
 <div class="card">
-<h3>Change PIN</h3>
 
-<input type="password" id="oldPin" placeholder="Old PIN" maxlength="4">
-<input type="password" id="newPin" placeholder="New PIN" maxlength="4">
-<input type="password" id="confirmPin" placeholder="Confirm New PIN" maxlength="4">
+<h3 id="title">Enter Old PIN</h3>
 
-<button id="changeBtn">Change PIN</button>
-<p id="msg"></p>
+<div class="pin-box" id="pinBox"></div>
+
+<div class="keypad" id="keypad"></div>
 
 </div>
 </div>
+
+<div class="toast" id="toast"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
-  authDomain: "zyppayx-69c54.firebaseapp.com",
-  projectId: "zyppayx-69c54",
-  storageBucket: "zyppayx-69c54.appspot.com",
-  messagingSenderId: "439535581166",
-  appId: "1:439535581166:web:994d1c9f75bd1294ef00ff"
-};
+const app = initializeApp({
+  apiKey:"AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
+  authDomain:"zyppayx-69c54.firebaseapp.com",
+  projectId:"zyppayx-69c54"
+});
 
-const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-let currentUserId = "";
-let savedPinHash = "";
+let step = 1;
+let oldPin = "";
+let newPin = "";
+let savedHash = "";
+let input = "";
 
-async function hashPin(pin) {
-  const enc = new TextEncoder().encode(pin);
-  const hash = await crypto.subtle.digest("SHA-256", enc);
-  return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,"0")).join("");
+// toast
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.style.display="block";
+  setTimeout(()=>t.style.display="none",3000);
 }
 
-onAuthStateChanged(auth, async (user) => {
-  if (!user) return location.href="login.html";
+// hash
+async function hashPin(pin){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pin));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
 
-  currentUserId = user.uid;
-
-  const snap = await getDoc(doc(db,"users",user.uid));
-  if (snap.exists()) {
-    savedPinHash = snap.data().pinHash || "";
+// UI PIN BOX
+function renderPin(){
+  const box = document.getElementById("pinBox");
+  box.innerHTML="";
+  for(let i=0;i<4;i++){
+    const d = document.createElement("div");
+    d.textContent = input[i] ? "●" : "";
+    box.appendChild(d);
   }
-});
+}
 
-document.getElementById("changeBtn").onclick = async () => {
-  const oldPin = document.getElementById("oldPin").value;
-  const newPin = document.getElementById("newPin").value;
-  const confirmPin = document.getElementById("confirmPin").value;
-  const msg = document.getElementById("msg");
+// KEYPAD
+function createKeypad(){
+  const keys = [...Array(9).keys()].map(i=>i+1).concat(["",0,"⌫"]);
+  const pad = document.getElementById("keypad");
 
-  msg.textContent = "";
+  keys.forEach(k=>{
+    const btn = document.createElement("button");
+    btn.textContent = k;
 
-  if (newPin.length !== 4) {
-    msg.textContent = "PIN must be 4 digits";
-    msg.className = "error";
-    return;
-  }
+    btn.onclick = async ()=>{
+      if(k==="⌫"){
+        input = input.slice(0,-1);
+      } else if(k!==""){
+        if(input.length<4) input+=k;
+      }
 
-  if (newPin !== confirmPin) {
-    msg.textContent = "PINs do not match";
-    msg.className = "error";
-    return;
-  }
+      renderPin();
 
-  const oldHash = await hashPin(oldPin);
+      if(input.length===4){
+        await handlePin(input);
+        input="";
+        setTimeout(renderPin,100);
+      }
+    };
 
-  if (oldHash !== savedPinHash) {
-    msg.textContent = "Old PIN incorrect";
-    msg.className = "error";
-    return;
-  }
-
-  const newHash = await hashPin(newPin);
-
-  await updateDoc(doc(db,"users",currentUserId), {
-    pinHash: newHash,
-    failedAttempts: 0,
-    lockUntil: 0
+    pad.appendChild(btn);
   });
+}
 
-  msg.textContent = "PIN updated successfully";
-  msg.className = "success";
+// HANDLE PIN STEPS
+async function handlePin(pin){
+  if(step===1){
+    const hash = await hashPin(pin);
+    if(hash!==savedHash){
+      toast("Wrong Old PIN");
+      return;
+    }
+    oldPin = pin;
+    step=2;
+    document.getElementById("title").textContent="Enter New PIN";
+  }
 
-  document.getElementById("oldPin").value="";
-  document.getElementById("newPin").value="";
-  document.getElementById("confirmPin").value="";
-};
+  else if(step===2){
+    newPin = pin;
+    step=3;
+    document.getElementById("title").textContent="Confirm New PIN";
+  }
+
+  else if(step===3){
+    if(pin!==newPin){
+      toast("PIN mismatch");
+      return;
+    }
+
+    const newHash = await hashPin(newPin);
+
+    await updateDoc(doc(db,"users",auth.currentUser.uid),{
+      pinHash:newHash
+    });
+
+    toast("PIN Changed Successfully");
+    setTimeout(()=>location.href="profile.html",1500);
+  }
+}
+
+// LOAD USER
+(async ()=>{
+  const snap = await getDoc(doc(db,"users",auth.currentUser.uid));
+  savedHash = snap.data().pinHash || "";
+})();
+
+createKeypad();
+renderPin();
 </script>
 
 </body>
