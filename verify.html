@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verify Account</title>
+
+<style>
+body { font-family: Arial; background:#f6f8fb; margin:0; }
+.container { max-width:400px; margin:auto; padding:20px; }
+
+.card {
+  background:#fff;
+  padding:20px;
+  border-radius:12px;
+  margin-bottom:20px;
+}
+
+input {
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+
+button {
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border:none;
+  border-radius:8px;
+  background:#00c896;
+  color:#fff;
+  font-weight:bold;
+}
+
+.loader {
+  border:4px solid #eee;
+  border-top:4px solid #00c896;
+  border-radius:50%;
+  width:25px;
+  height:25px;
+  animation:spin 1s linear infinite;
+  margin:auto;
+  display:none;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.success { color:green; }
+.error { color:red; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="card">
+<h3>Verify NIN (Tier 2)</h3>
+<input type="text" id="nin" placeholder="Enter NIN">
+<button onclick="verifyNIN()">Verify NIN</button>
+</div>
+
+<div class="card">
+<h3>Verify BVN (Tier 3)</h3>
+<input type="text" id="bvn" placeholder="Enter BVN">
+<button onclick="verifyBVN()">Verify BVN</button>
+</div>
+
+<div class="loader" id="loader"></div>
+<p id="msg"></p>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
+  authDomain: "zyppayx-69c54.firebaseapp.com",
+  projectId: "zyppayx-69c54"
+});
+
+const auth = getAuth(app);
+
+// 🔥 IMPORTANT BASE URL (NO EDIT TOMORROW)
+const BASE_URL = "https://us-central1-zyppayx-69c54.cloudfunctions.net";
+
+function showLoader(state){
+  document.getElementById("loader").style.display = state ? "block" : "none";
+}
+
+function showMsg(text, type){
+  const msg = document.getElementById("msg");
+  msg.textContent = text;
+  msg.className = type;
+}
+
+// ✅ VERIFY NIN
+window.verifyNIN = async () => {
+  const nin = document.getElementById("nin").value.trim();
+  if(!nin) return showMsg("Enter NIN","error");
+
+  showLoader(true);
+
+  try {
+    const res = await fetch(BASE_URL + "/verifyNIN", {
+      method: "POST",
+      headers: { "Content-Type":"application/json" },
+      body: JSON.stringify({
+        userId: auth.currentUser.uid,
+        nin
+      })
+    });
+
+    const data = await res.json();
+
+    if(data.success){
+      showMsg("NIN Verified ✅","success");
+    }else{
+      showMsg(data.message || "Failed","error");
+    }
+
+  } catch {
+    showMsg("Network error","error");
+  }
+
+  showLoader(false);
+};
+
+// ✅ VERIFY BVN
+window.verifyBVN = async () => {
+  const bvn = document.getElementById("bvn").value.trim();
+  if(!bvn) return showMsg("Enter BVN","error");
+
+  showLoader(true);
+
+  try {
+    const res = await fetch(BASE_URL + "/verifyBVN", {
+      method: "POST",
+      headers: { "Content-Type":"application/json" },
+      body: JSON.stringify({
+        userId: auth.currentUser.uid,
+        bvn
+      })
+    });
+
+    const data = await res.json();
+
+    if(data.success){
+      showMsg("BVN Verified 🎉","success");
+    }else{
+      showMsg(data.message || "Failed","error");
+    }
+
+  } catch {
+    showMsg("Network error","error");
+  }
+
+  showLoader(false);
+};
+</script>
+
+</body>
+  </html>
