@@ -111,6 +111,8 @@ button {
 <div id="toast" class="toast"></div>
 
 <script>
+const API = "https://zyppayxvest-backend.onrender.com";
+
 let isLogin = true;
 
 const formTitle = document.getElementById("formTitle");
@@ -155,8 +157,8 @@ toggleText.onclick = () => {
 
 // SUBMIT
 submitBtn.onclick = async () => {
-  const email = emailInput.value;
-  const password = passwordInput.value;
+  const email = emailInput.value.trim();
+  const password = passwordInput.value.trim();
 
   if (!email || !password) {
     showToast("Fill all fields");
@@ -167,23 +169,29 @@ submitBtn.onclick = async () => {
 
   try {
     if (isLogin) {
-      const res = await fetch("https://zyppayxvest-backend.onrender.com/login", {
+      // LOGIN
+      const res = await fetch(`${API}/login`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({ email, password })
       });
 
       const data = await res.json();
+
       if (!res.ok) throw new Error(data.detail || "Login failed");
 
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
       successCheck.style.display = "block";
-      setTimeout(()=> window.location.href="dashboard.html",1000);
+
+      setTimeout(()=>{
+        window.location.href = "dashboard.html";
+      },1000);
 
     } else {
-      const name = nameInput.value;
+      // SIGNUP
+      const name = nameInput.value.trim();
 
       if (!name) {
         showToast("Enter your name");
@@ -191,7 +199,7 @@ submitBtn.onclick = async () => {
         return;
       }
 
-      const res = await fetch("https://zyppayxvest-backend.onrender.com/signup", {
+      const res = await fetch(`${API}/signup`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
@@ -202,10 +210,14 @@ submitBtn.onclick = async () => {
       });
 
       const data = await res.json();
+
       if (!res.ok) throw new Error(data.detail || "Signup failed");
 
       successCheck.style.display = "block";
-      setTimeout(()=> window.location.href="login.html",1000);
+
+      setTimeout(()=>{
+        window.location.href = "login.html";
+      },1000);
     }
 
   } catch(err){
@@ -215,11 +227,11 @@ submitBtn.onclick = async () => {
   setLoading(false);
 };
 
-// GOOGLE BUTTON (disabled for now)
+// GOOGLE (disabled for now)
 document.getElementById("googleBtn").onclick = () => {
-  showToast("Google login coming soon");
+  showToast("Google login not connected yet");
 };
 </script>
 
 </body>
-  </html>
+</html>
