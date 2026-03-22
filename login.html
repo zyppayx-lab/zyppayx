@@ -178,7 +178,11 @@ submitBtn.onclick = async () => {
 
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.detail || "Login failed");
+      if (!res.ok) {
+        showToast(data.detail || "Invalid credentials");
+        setLoading(false);
+        return;
+      }
 
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
@@ -211,7 +215,11 @@ submitBtn.onclick = async () => {
 
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.detail || "Signup failed");
+      if (!res.ok) {
+        showToast(data.detail || "Signup failed");
+        setLoading(false);
+        return;
+      }
 
       successCheck.style.display = "block";
 
@@ -221,13 +229,13 @@ submitBtn.onclick = async () => {
     }
 
   } catch(err){
-    showToast(err.message);
+    showToast("Network error. Try again.");
   }
 
   setLoading(false);
 };
 
-// GOOGLE (disabled for now)
+// GOOGLE (not connected yet)
 document.getElementById("googleBtn").onclick = () => {
   showToast("Google login not connected yet");
 };
