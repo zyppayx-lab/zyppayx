@@ -48,7 +48,6 @@ button {
 
 .hidden { display:none; }
 
-/* LOADER */
 .loader {
   border: 4px solid #f3f3f3;
   border-top: 4px solid #00c896;
@@ -63,7 +62,6 @@ button {
   100% { transform: rotate(360deg); }
 }
 
-/* TOAST */
 .toast {
   position: fixed;
   bottom: 20px;
@@ -76,7 +74,6 @@ button {
   display:none;
 }
 
-/* SUCCESS */
 .success-check {
   font-size:50px;
   color:#00c896;
@@ -113,37 +110,7 @@ button {
 
 <div id="toast" class="toast"></div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithPopup
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-import {
-  getFirestore,
-  doc,
-  setDoc,
-  getDoc
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
-  authDomain: "zyppayx-69c54.firebaseapp.com",
-  projectId: "zyppayx-69c54",
-  storageBucket: "zyppayx-69c54.appspot.com",
-  messagingSenderId: "439535581166",
-  appId: "1:439535581166:web:994d1c9f75bd1294ef00ff"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
-
+<script>
 let isLogin = true;
 
 const formTitle = document.getElementById("formTitle");
@@ -200,38 +167,45 @@ submitBtn.onclick = async () => {
 
   try {
     if (isLogin) {
-      await signInWithEmailAndPassword(auth, email, password);
+      const res = await fetch("https://zyppayxvest-backend.onrender.com/login", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Login failed");
+
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("user", JSON.stringify(data.user));
 
       successCheck.style.display = "block";
       setTimeout(()=> window.location.href="dashboard.html",1000);
 
     } else {
       const name = nameInput.value;
-      const phone = phoneInput.value;
 
-      if (!name || !phone) {
-        showToast("Enter name & phone");
+      if (!name) {
+        showToast("Enter your name");
         setLoading(false);
         return;
       }
 
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      const uid = cred.user.uid;
-      const refCode = uid.slice(0,6).toUpperCase();
-
-      await setDoc(doc(db,"users",uid),{
-        fullName:name,
-        phone,
-        email,
-        balance:0,
-        referralCode:refCode,
-        createdAt:Date.now()
+      const res = await fetch("https://zyppayxvest-backend.onrender.com/signup", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          email,
+          password,
+          full_name: name
+        })
       });
 
-      await setDoc(doc(db,"referrals",refCode),{ uid });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Signup failed");
 
       successCheck.style.display = "block";
-      setTimeout(()=> window.location.href="createpin.html",1000);
+      setTimeout(()=> window.location.href="login.html",1000);
     }
 
   } catch(err){
@@ -241,38 +215,9 @@ submitBtn.onclick = async () => {
   setLoading(false);
 };
 
-// GOOGLE LOGIN
-document.getElementById("googleBtn").onclick = async () => {
-  try{
-    setLoading(true);
-
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
-
-    const ref = doc(db,"users",user.uid);
-    const snap = await getDoc(ref);
-
-    if(!snap.exists()){
-      const code = user.uid.slice(0,6).toUpperCase();
-
-      await setDoc(ref,{
-        fullName:user.displayName,
-        email:user.email,
-        balance:0,
-        referralCode:code
-      });
-
-      await setDoc(doc(db,"referrals",code),{ uid:user.uid });
-    }
-
-    successCheck.style.display = "block";
-    setTimeout(()=> window.location.href="createpin.html",1000);
-
-  }catch(err){
-    showToast(err.message);
-  }
-
-  setLoading(false);
+// GOOGLE BUTTON (disabled for now)
+document.getElementById("googleBtn").onclick = () => {
+  showToast("Google login coming soon");
 };
 </script>
 
