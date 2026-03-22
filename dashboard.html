@@ -130,80 +130,43 @@ li {
 
 </div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import {
-  getFirestore,
-  doc,
-  onSnapshot,
-  collection,
-  query,
-  orderBy,
-  limit
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-const app = initializeApp({
-  apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
-  authDomain: "zyppayx-69c54.firebaseapp.com",
-  projectId: "zyppayx-69c54"
-});
-
-const auth = getAuth(app);
-const db = getFirestore(app);
+<script>
+const API = "https://zyppayxvest-backend.onrender.com";
 
 window.go = (url) => window.location.href = url;
 
-onAuthStateChanged(auth, (user) => {
-  if (!user) return location.href = "login.html";
+// GET USER FROM LOGIN
+const user = JSON.parse(localStorage.getItem("user"));
 
-  const userRef = doc(db, "users", user.uid);
+if (!user) {
+  window.location.href = "login.html";
+}
 
-  // ✅ USER REAL-TIME DATA
-  onSnapshot(userRef, (snap) => {
-    if (!snap.exists()) return;
+// SET BASIC DATA
+document.getElementById("userName").textContent = user.full_name;
+document.getElementById("balance").textContent = user.balance;
 
-    const d = snap.data();
+// OPTIONAL (placeholders until backend expands)
+document.getElementById("earnings").textContent = 0;
+document.getElementById("refBonus").textContent = 0;
+document.getElementById("refCount").textContent = 0;
+document.getElementById("activeInv").textContent = 0;
 
-    document.getElementById("userName").textContent = d.fullName || "User";
-    document.getElementById("balance").textContent = d.balance || 0;
-    document.getElementById("earnings").textContent = d.totalEarnings || 0;
-    document.getElementById("refBonus").textContent = d.referralBonus || 0;
-    document.getElementById("refCount").textContent = d.referrals || 0;
-    document.getElementById("activeInv").textContent = d.activeInvestment || 0;
+// SIMPLE TIER LOGIC (temporary)
+let tier = 1;
+if (user.balance > 1000) tier = 2;
+if (user.balance > 5000) tier = 3;
 
-    // ✅ TIER SYSTEM (AUTO UPDATE FROM CLOUD FUNCTION)
-    const tier = d.tier || 1;
-    const badge = document.getElementById("tierBadge");
+const badge = document.getElementById("tierBadge");
+badge.textContent = "Tier " + tier;
+badge.className = "badge tier" + tier;
 
-    badge.textContent = "Tier " + tier;
-    badge.className = "badge tier" + tier;
-  });
-
-  // ✅ ACTIVITIES
-  const q = query(
-    collection(db, "users", user.uid, "activities"),
-    orderBy("createdAt", "desc"),
-    limit(5)
-  );
-
-  onSnapshot(q, (snap) => {
-    const list = document.getElementById("activities");
-    list.innerHTML = "";
-
-    if (snap.empty) {
-      list.innerHTML = "<li>No activity yet</li>";
-      return;
-    }
-
-    snap.forEach(doc => {
-      const li = document.createElement("li");
-      li.textContent = doc.data().message;
-      list.appendChild(li);
-    });
-  });
-
-});
+// TEMP ACTIVITIES
+const activities = document.getElementById("activities");
+activities.innerHTML = `
+  <li>Welcome to Zyppayxvest 🎉</li>
+  <li>Your account is ready</li>
+`;
 </script>
 
 </body>
