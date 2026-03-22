@@ -6,7 +6,7 @@
 <title>Zyppayxvest | Dashboard</title>
 
 <style>
-body { margin:0; font-family: Arial; background:#f6f8fb;}
+body { margin:0; font-family: Arial; background:#f6f8fb; padding-bottom:70px;}
 
 header {
   background:#0a1f44;
@@ -21,6 +21,24 @@ header {
   text-align:center;
   padding:25px;
   border-radius:0 0 20px 20px;
+}
+
+.balance-box {
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:10px;
+  margin-top:10px;
+}
+
+.history-btn {
+  padding:6px 10px;
+  font-size:12px;
+  background:#fff;
+  color:#102f66;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
 }
 
 .container { padding:15px; }
@@ -78,6 +96,25 @@ li {
   border-radius:8px;
   margin-top:8px;
 }
+
+/* Bottom Nav */
+.bottom-nav {
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  background:#fff;
+  display:flex;
+  justify-content:space-around;
+  padding:10px 0;
+  box-shadow:0 -2px 10px rgba(0,0,0,0.1);
+}
+
+.bottom-nav button {
+  background:none;
+  color:#0a1f44;
+  font-size:12px;
+}
 </style>
 </head>
 
@@ -87,7 +124,15 @@ li {
 
 <div class="hero">
   <h2>Welcome, <span id="userName">User</span></h2>
-  <p>Wallet Balance: ₦<span id="balance">0</span></p>
+
+  <!-- 🔥 BALANCE + HISTORY BUTTON -->
+  <div class="balance-box">
+    <p>₦<span id="balance">0</span></p>
+    <button class="history-btn" onclick="go('withdrawal-history.html')">
+      History
+    </button>
+  </div>
+
   <div id="tierBadge" class="badge tier1">Tier 1</div>
 </div>
 
@@ -116,11 +161,11 @@ li {
 </div>
 
 <div class="actions">
-  <button onclick="go('invest.html')">Invest</button>
+  <button onclick="go('deposit.html')">Deposit</button>
   <button onclick="go('withdraw.html')">Withdraw</button>
   <button onclick="go('refer.html')">Refer</button>
   <button onclick="go('withdrawal-history.html')">History</button>
-  <button onclick="go('verify.html')">Verify Account</button>
+  <button onclick="go('verify.html')">Upgrade Tier</button>
 </div>
 
 <h3>Recent Activity</h3>
@@ -130,29 +175,30 @@ li {
 
 </div>
 
+<!-- Bottom Nav -->
+<div class="bottom-nav">
+  <button onclick="go('dashboard.html')">Home</button>
+  <button onclick="go('invest.html')">Invest</button>
+  <button onclick="go('alerts.html')">Alert</button>
+  <button onclick="go('profile.html')">Profile</button>
+</div>
+
 <script>
-const API = "https://zyppayxvest-backend.onrender.com";
-
-window.go = (url) => window.location.href = url;
-
-// GET USER FROM LOGIN
 const user = JSON.parse(localStorage.getItem("user"));
 
 if (!user) {
   window.location.href = "login.html";
 }
 
-// SET BASIC DATA
-document.getElementById("userName").textContent = user.full_name;
-document.getElementById("balance").textContent = user.balance;
+document.getElementById("userName").textContent = user.full_name || "User";
+document.getElementById("balance").textContent = user.balance || 0;
 
-// OPTIONAL (placeholders until backend expands)
 document.getElementById("earnings").textContent = 0;
 document.getElementById("refBonus").textContent = 0;
 document.getElementById("refCount").textContent = 0;
 document.getElementById("activeInv").textContent = 0;
 
-// SIMPLE TIER LOGIC (temporary)
+// Tier logic
 let tier = 1;
 if (user.balance > 1000) tier = 2;
 if (user.balance > 5000) tier = 3;
@@ -161,13 +207,17 @@ const badge = document.getElementById("tierBadge");
 badge.textContent = "Tier " + tier;
 badge.className = "badge tier" + tier;
 
-// TEMP ACTIVITIES
-const activities = document.getElementById("activities");
-activities.innerHTML = `
+// Navigation
+function go(url){
+  window.location.href = url;
+}
+
+// Activities
+document.getElementById("activities").innerHTML = `
   <li>Welcome to Zyppayxvest 🎉</li>
-  <li>Your account is ready</li>
+  <li>Your account is active</li>
 `;
 </script>
 
 </body>
-</html>
+                        </html>
