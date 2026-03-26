@@ -4,60 +4,71 @@
   <title>Create PIN</title>
   <style>
     body {
-      font-family: Arial;
       background: #0a0f2c;
       color: white;
+      font-family: Arial;
       text-align: center;
       padding-top: 100px;
     }
 
+    .pin-box {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 20px;
+    }
+
     input {
-      padding: 12px;
-      width: 80%;
-      margin: 10px;
-      border-radius: 8px;
+      width: 50px;
+      height: 50px;
+      font-size: 24px;
+      text-align: center;
+      border-radius: 10px;
       border: none;
     }
 
     button {
       padding: 12px;
-      width: 85%;
+      width: 80%;
       background: #00c853;
-      color: white;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
+      color: white;
     }
   </style>
 </head>
 
 <body>
 
-<h2>Create Transaction PIN</h2>
+<h2>Create PIN</h2>
 
-<input type="password" id="pin" placeholder="Enter 4-digit PIN">
-<br>
-<input type="password" id="confirm" placeholder="Confirm PIN">
-<br>
+<div class="pin-box">
+  <input maxlength="1" id="p1">
+  <input maxlength="1" id="p2">
+  <input maxlength="1" id="p3">
+  <input maxlength="1" id="p4">
+</div>
 
 <button onclick="setPin()">Continue</button>
 
 <script>
 const API = "https://zyppayxvest-backend.onrender.com";
-
-// 👇 get email from signup
 const email = localStorage.getItem("email");
 
+function getPin() {
+  return (
+    document.getElementById("p1").value +
+    document.getElementById("p2").value +
+    document.getElementById("p3").value +
+    document.getElementById("p4").value
+  );
+}
+
 async function setPin() {
-  const pin = document.getElementById("pin").value;
-  const confirm = document.getElementById("confirm").value;
+  const pin = getPin();
 
   if (pin.length !== 4) {
-    alert("PIN must be 4 digits");
-    return;
-  }
-
-  if (pin !== confirm) {
-    alert("PINs do not match");
+    alert("Enter complete PIN");
     return;
   }
 
@@ -66,10 +77,7 @@ async function setPin() {
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({
-      email,
-      pin
-    })
+    body: JSON.stringify({ email, pin })
   });
 
   const data = await res.json();
