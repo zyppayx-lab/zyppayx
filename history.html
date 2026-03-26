@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Transactions</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #f5f6fa;
+    }
+
+    .card {
+      background: white;
+      margin: 10px;
+      padding: 15px;
+      border-radius: 10px;
+    }
+
+    .type {
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2 style="padding:10px;">Transaction History</h2>
+
+<div id="list"></div>
+
+<script>
+const API = "https://zyppayxvest-backend.onrender.com";
+const email = localStorage.getItem("email");
+
+async function loadTx() {
+  const res = await fetch(`${API}/transactions/${email}`);
+  const data = await res.json();
+
+  const container = document.getElementById("list");
+  container.innerHTML = "";
+
+  data.reverse().forEach(tx => {
+    let status = "";
+
+    if (tx.type === "withdraw_pending") status = "⏳ Pending";
+    if (tx.type === "withdraw_completed") status = "✅ Completed";
+    if (tx.type === "deposit") status = "💰 Deposit";
+    if (tx.type === "investment_profit") status = "📈 Profit";
+
+    container.innerHTML += `
+      <div class="card">
+        <div class="type">${status}</div>
+        <div>₦${tx.amount}</div>
+      </div>
+    `;
+  });
+}
+
+loadTx();
+</script>
+
+</body>
+</html>
