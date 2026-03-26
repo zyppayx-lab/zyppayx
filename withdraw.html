@@ -1,226 +1,135 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zyppayxvest | Withdraw</title>
+  <title>Withdraw</title>
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      padding-top: 50px;
+      background: #f5f6fa;
+    }
 
-<style>
-body { margin:0; font-family: Arial; background:#f6f8fb;}
-header { background:#0a1f44;color:#fff;padding:20px;text-align:center;}
+    input, select {
+      padding: 12px;
+      width: 85%;
+      margin: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
 
-.container { max-width:600px;margin:auto;padding:15px;}
+    .pin-box {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 10px;
+    }
 
-.card { background:#fff;padding:18px;border-radius:12px;margin-bottom:20px;}
+    .pin-box input {
+      width: 50px;
+      height: 50px;
+      font-size: 20px;
+      text-align: center;
+    }
 
-input, select {
-  width:100%;
-  padding:10px;
-  margin-top:10px;
-  border-radius:8px;
-  border:1px solid #ccc;
-}
-
-button {
-  margin-top:15px;
-  padding:12px;
-  background:#00c896;
-  color:#fff;
-  border:none;
-  border-radius:8px;
-  width:100%;
-  font-weight:bold;
-}
-
-.pin-box {
-  display:flex;
-  justify-content:space-between;
-  margin-top:15px;
-}
-.pin-digit {
-  width:50px;height:50px;
-  border:2px solid #ccc;
-  border-radius:10px;
-  text-align:center;
-  line-height:50px;
-  font-size:20px;
-}
-
-.keypad {
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:10px;
-  margin-top:15px;
-}
-.key {
-  padding:15px;
-  background:#eee;
-  text-align:center;
-  border-radius:10px;
-  font-size:18px;
-}
-
-.link {
-  text-align:center;
-  margin-top:10px;
-}
-.link a {
-  color:#0a1f44;
-  text-decoration:none;
-  font-weight:bold;
-}
-
-.success { color:green; }
-.error { color:red; }
-</style>
+    button {
+      padding: 12px;
+      width: 85%;
+      background: #0a0f2c;
+      color: white;
+      border: none;
+      border-radius: 8px;
+    }
+  </style>
 </head>
 
 <body>
 
-<header>Request Withdrawal</header>
-
-<div class="container">
-
-<div class="card">
-<h3>Your Wallet Balance</h3>
-<p>₦<span id="balance">0</span></p>
-</div>
-
-<div class="card">
-<h3>Withdrawal Form</h3>
+<h2>Withdraw Money</h2>
 
 <input type="number" id="amount" placeholder="Enter amount">
-<p id="feeInfo"></p>
 
-<select id="bankName">
-<option value="">Select Bank</option>
-<option>Access Bank</option>
-<option>GTBank</option>
-<option>Zenith Bank</option>
-<option>First Bank</option>
-<option>UBA</option>
-<option>Fidelity Bank</option>
-<option>Union Bank</option>
-<option>Sterling Bank</option>
-<option>Wema Bank</option>
-<option>Polaris Bank</option>
-<option>Stanbic IBTC</option>
-<option>FCMB</option>
-<option>Ecobank</option>
-<option>Kuda Bank</option>
-<option>Opay</option>
-<option>Palmpay</option>
-<option>Moniepoint MFB</option>
-<option>Jaiz Bank</option>
-<option>Keystone Bank</option>
-<option>Titan Trust Bank</option>
+<!-- ✅ BANK LIST -->
+<select id="bank">
+  <option value="">Select Bank</option>
+  <option value="044">Access Bank</option>
+  <option value="014">Afribank</option>
+  <option value="023">Citibank</option>
+  <option value="050">Ecobank</option>
+  <option value="070">Fidelity Bank</option>
+  <option value="011">First Bank</option>
+  <option value="214">First City Monument Bank</option>
+  <option value="058">Guaranty Trust Bank</option>
+  <option value="030">Heritage Bank</option>
+  <option value="301">Jaiz Bank</option>
+  <option value="082">Keystone Bank</option>
+  <option value="526">Parallex Bank</option>
+  <option value="076">Polaris Bank</option>
+  <option value="101">Providus Bank</option>
+  <option value="221">Stanbic IBTC</option>
+  <option value="068">Standard Chartered</option>
+  <option value="232">Sterling Bank</option>
+  <option value="100">Suntrust Bank</option>
+  <option value="032">Union Bank</option>
+  <option value="033">UBA</option>
+  <option value="215">Unity Bank</option>
+  <option value="035">Wema Bank</option>
+  <option value="057">Zenith Bank</option>
+  <option value="090267">Kuda Bank</option>
+  <option value="090110">VFD Bank</option>
+  <option value="090405">Moniepoint</option>
+  <option value="100004">Opay</option>
+  <option value="100033">PalmPay</option>
 </select>
 
-<input type="text" id="accountName" placeholder="Account Name">
-<input type="text" id="accountNumber" placeholder="Account Number">
+<input type="number" id="account" placeholder="Account Number">
 
-<!-- PIN DISPLAY -->
+<!-- PIN -->
 <div class="pin-box">
-<div class="pin-digit" id="d1"></div>
-<div class="pin-digit" id="d2"></div>
-<div class="pin-digit" id="d3"></div>
-<div class="pin-digit" id="d4"></div>
+  <input maxlength="1" id="p1">
+  <input maxlength="1" id="p2">
+  <input maxlength="1" id="p3">
+  <input maxlength="1" id="p4">
 </div>
 
-<!-- KEYPAD -->
-<div class="keypad" id="keypad"></div>
+<button onclick="withdraw()">Withdraw</button>
 
-<button id="withdrawBtn" disabled>Request Withdrawal</button>
-<p id="message"></p>
+<script>
+const API = "https://zyppayxvest-backend.onrender.com";
+const email = localStorage.getItem("email");
 
-<div class="link">
-<a href="withdrawal-history.html">View Withdrawal History</a>
-</div>
-
-</div>
-</div>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCQ8TCMUAySwLSBN3-0W1GV4XWateS1rqQ",
-  authDomain: "zyppayx-69c54.firebaseapp.com",
-  projectId: "zyppayx-69c54",
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const functions = getFunctions(app);
-
-let pin = "";
-let currentUser = null;
-
-// KEYPAD SETUP
-const keypad = document.getElementById("keypad");
-[1,2,3,4,5,6,7,8,9,"",0,"⌫"].forEach(k => {
-  const div = document.createElement("div");
-  div.className = "key";
-  div.textContent = k;
-  div.onclick = () => pressKey(k);
-  keypad.appendChild(div);
-});
-
-function pressKey(key){
-  if(key==="⌫"){
-    pin = pin.slice(0,-1);
-  } else if(pin.length<4 && key!==""){
-    pin += key;
-  }
-  renderPin();
+function getPin() {
+  return p1.value + p2.value + p3.value + p4.value;
 }
 
-function renderPin(){
-  for(let i=1;i<=4;i++){
-    document.getElementById("d"+i).textContent = pin[i-1] ? "•" : "";
+async function withdraw() {
+  const amount = document.getElementById("amount").value;
+  const bank = document.getElementById("bank").value;
+  const account = document.getElementById("account").value;
+  const pin = getPin();
+
+  if (!bank || !account || !amount || pin.length !== 4) {
+    alert("Fill all fields correctly");
+    return;
   }
-  document.getElementById("withdrawBtn").disabled = pin.length !== 4;
+
+  const res = await fetch(`${API}/withdraw`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      email,
+      amount: Number(amount),
+      pin
+    })
+  });
+
+  const data = await res.json();
+
+  alert(data.message || data.detail);
 }
-
-// LOAD USER
-onAuthStateChanged(auth, async user => {
-  if(!user) return location.href="login.html";
-  currentUser = user;
-
-  const snap = await getDoc(doc(db,"users",user.uid));
-  document.getElementById("balance").textContent = snap.data().balance || 0;
-});
-
-// WITHDRAW VIA CLOUD FUNCTION
-document.getElementById("withdrawBtn").onclick = async () => {
-  const msg = document.getElementById("message");
-
-  try{
-    const withdraw = httpsCallable(functions,"requestWithdrawal");
-
-    const res = await withdraw({
-      amount: Number(document.getElementById("amount").value),
-      bankName: document.getElementById("bankName").value,
-      accountName: document.getElementById("accountName").value,
-      accountNumber: document.getElementById("accountNumber").value,
-      pin: pin
-    });
-
-    msg.textContent = res.data.message;
-    msg.className = "success";
-    pin="";
-    renderPin();
-
-  }catch(err){
-    msg.textContent = err.message;
-    msg.className = "error";
-  }
-};
 </script>
 
 </body>
-</html>
+    </html>
